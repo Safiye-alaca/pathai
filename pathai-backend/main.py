@@ -1,6 +1,7 @@
 import os
 import json
 from typing import List
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -24,36 +25,46 @@ app.add_middleware(
 )
 
 # =====================================================================
-# 3. VERİ ŞEMALARI (PYDANTIC BASEMODELS) - TÜRKÇE KLAVUZLU ŞEMALAR
+# 3. VERİ ŞEMALARI (PYDANTIC BASEMODELS)
 # =====================================================================
 
 # --- 1. Gün: Sektörel Proje Önerisi Şemaları ---
 class ProjectSuggestion(BaseModel):
-    title: str          # Üretilecek projenin Türkçe adı
-    description: str    # Projenin Türkçe kısa özeti
-    difficulty: str     # Zorluk Seviyesi (Başlangıç, Orta, İleri)
-    why_this: str       # Bu projenin o sektöre neden uygun olduğunun Türkçe açıklaması
+    title: str          
+    description: str    
+    difficulty: str     
+    why_this: str       
 
 class SectorProjectResponse(BaseModel):
-    sector: str         # Sorgulanan sektör adı
+    sector: str         
     projects: List[ProjectSuggestion]
-
 
 # --- 2. Gün: Yol Haritası ve Mimari Şemaları ---
 class ArchitectureComponent(BaseModel):
-    layer: str          # Katman adı (Örn: Veri Toplama, Backend, Yapay Zeka Katmanı)
-    technology: str     # Kullanılacak teknoloji (Örn: Next.js, FastAPI, PostgreSQL)
-    reason: str         # Bu teknolojinin neden seçildiğinin Türkçe mimari açıklaması
+    layer: str          
+    technology: str     
+    reason: str         
 
 class RoadmapDay(BaseModel):
-    day_number: int     # Kaçıncı gün olduğu (1, 2, 3, 4, 5)
-    topic: str          # O gün öğrenilmesi/yapılması gereken ana konu (Türkçe)
-    tasks: List[str]    # O günün pratik görev listesi (Türkçe)
+    day_number: int     
+    topic: str          
+    tasks: List[str]    
 
 class ProjectProjectRoadmapResponse(BaseModel):
     project_title: str
     architecture_stack: List[ArchitectureComponent]
     learning_roadmap: List[RoadmapDay]
+
+# --- 3. Gün: GitHub & Hugging Face Radarı Şemaları ---
+class TechRadarItem(BaseModel):
+    name: str           # Repo veya Model adı
+    url: str            # Erişim linki
+    description: str    # Ne işe yaradığına dair kısa Türkçe açıklama
+    metric: str         # Yıldız sayısı veya indirilme miktarı bilgi metni
+
+class TechRadarResponse(BaseModel):
+    github_trending: List[TechRadarItem]
+    huggingface_trending: List[TechRadarItem]
 
 
 # =====================================================================
@@ -109,5 +120,64 @@ def get_project_roadmap(project_title: str):
             ),
         )
         return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# [3. GÜN ENDPOINT'İ]: Canlı verileri çekip özetleyen GitHub & Hugging Face Radarı
+@app.get("/api/radar")
+def get_tech_radar():
+    try:
+        # 1. GitHub API'sinden yapay zeka (AI) tabanlı en popüler repoları çekiyoruz
+        github_url = "https://api.github.com/search/repositories?q=topic:artificial-intelligence+sort:stars&per_page=3"
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        gh_response = requests.get(github_url, headers=headers).json()
+        
+        gh_items = []
+        for repo in gh_response.get("items", []):
+            gh_items.append(
+                TechRadarItem(
+                    name=repo["full_name"],
+                    url=repo["html_url"],
+                    description=repo["description"] if repo["description"] else "Açıklama yok.",
+                    metric=f"⭐ {repo['stargazers_count']} Yıldız"
+                )
+            )
+
+        # 2. Hugging Face API'sinden en popüler 3 trend modeli çekiyoruz
+        hf_url = "https://huggingface.co/api/models?sort=downloads&direction=-1&limit=3"
+        hf_response = requests.get(hf_url).json()
+        
+        hf_items = []
+        for model in hf_response:
+            hf_items.append(
+                TechRadarItem(
+                    name=model["modelId"],
+                    url=f"https://huggingface.co/{{model['modelId']}}",
+                    description=f"Model Tipi: {{model.get('pipeline_tag', 'Bilinmiyor')}}",
+                    metric=f"📥 {model.get('downloads', 0)} İndirilme"
+                )
+            )
+
+        # 3. Elde ettiğimiz bu canlı verileri, yapay zekaya (Gemini) göndererek Türkçe analiz ettiriyoruz
+        analysis_prompt = f"""
+        Aşağıda GitHub ve Hugging Face platformlarından çekilmiş canlı popüler teknoloji verileri yer almaktadır:
+        GitHub Verileri: {json.dumps([item.dict() for item in gh_items])}
+        Hugging Face Verileri: {json.dumps([item.dict() for item in hf_items])}
+        
+        Lütfen bu repoların ve modellerin ne işe yaradığını analiz et ve her birinin açıklama (description) kısmını teknik ama anlaşılır tamamen TÜRKÇE bir dille yeniden yazarak şemaya uygun şekilde dön.
+        """
+
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=analysis_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=TechRadarResponse,
+                temperature=0.3
+            ),
+        )
+        return json.loads(response.text)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
