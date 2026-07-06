@@ -1,0 +1,6 @@
+pathai-backend/.env
+.env
+__pycache__/
+*.pyc
+node_modules/
+.next/
