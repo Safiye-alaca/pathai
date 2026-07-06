@@ -17,47 +17,97 @@ app = FastAPI(title="PathAI API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Geliştirme aşamasında Next.js'in rahat erişmesi için her kökene izin verdik
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 3. Gemini'dan İstediğimiz Yapılandırılmış JSON Şemasını Tanımlıyoruz
+# =====================================================================
+# 3. VERİ ŞEMALARI (PYDANTIC BASEMODELS) - TÜRKÇE KLAVUZLU ŞEMALAR
+# =====================================================================
+
+# --- 1. Gün: Sektörel Proje Önerisi Şemaları ---
 class ProjectSuggestion(BaseModel):
-    title: str          # Üretilecek projenin adı
-    description: str    # Projenin ne işe yaradığı (özeti)
-    difficulty: str     # Başlangıç, Orta veya İleri seviye kısıtlaması
-    why_this: str       # Bu projenin o sektöre nasıl katma değer sağladığının mantığı
+    title: str          # Üretilecek projenin Türkçe adı
+    description: str    # Projenin Türkçe kısa özeti
+    difficulty: str     # Zorluk Seviyesi (Başlangıç, Orta, İleri)
+    why_this: str       # Bu projenin o sektöre neden uygun olduğunun Türkçe açıklaması
 
 class SectorProjectResponse(BaseModel):
     sector: str         # Sorgulanan sektör adı
-    projects: List[ProjectSuggestion] # Sektöre ait üretilen proje fikirlerinin listesi
+    projects: List[ProjectSuggestion]
 
-# 4. Sektörel Proje Önerilerini Dönen Akıllı Endpoint'imiz
+
+# --- 2. Gün: Yol Haritası ve Mimari Şemaları ---
+class ArchitectureComponent(BaseModel):
+    layer: str          # Katman adı (Örn: Veri Toplama, Backend, Yapay Zeka Katmanı)
+    technology: str     # Kullanılacak teknoloji (Örn: Next.js, FastAPI, PostgreSQL)
+    reason: str         # Bu teknolojinin neden seçildiğinin Türkçe mimari açıklaması
+
+class RoadmapDay(BaseModel):
+    day_number: int     # Kaçıncı gün olduğu (1, 2, 3, 4, 5)
+    topic: str          # O gün öğrenilmesi/yapılması gereken ana konu (Türkçe)
+    tasks: List[str]    # O günün pratik görev listesi (Türkçe)
+
+class ProjectProjectRoadmapResponse(BaseModel):
+    project_title: str
+    architecture_stack: List[ArchitectureComponent]
+    learning_roadmap: List[RoadmapDay]
+
+
+# =====================================================================
+# 4. API ENDPOINTS (AKILLI SERVİS KATMANLARI)
+# =====================================================================
+
+# [1. GÜN ENDPOINT'İ]: Sektör bazlı proje fikirleri üreten servis
 @app.get("/api/projects/{sector}")
 def get_sector_projects(sector: str):
-    # Modelin bir mentor gibi davranmasını ve sektörel odaklanmasını sağlayan yönlendirme
     prompt = f"""
     Sen kıdemli bir Yapay Zeka ve Veri Bilimi Mentorüsün. 
     Kullanıcı '{sector}' sektörü için yapay zeka proje fikirleri istiyor.
     Lütfen bu sektöre katma değer sağlayacak, güncel trendlere uygun 2 adet özgün proje fikri üret.
-    """
     
+    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm proje adları, açıklamalar, zorluk dereceleri ve gerekçeler KESİNLİKLE TÜRKÇE olmalıdır.
+    """
     try:
-        # Gemini 2.5 Flash modeline Structured Outputs (JSON Mode) emri veriyoruz
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
-                response_mime_type="application/json", # Çıktı formatını JSON olarak kilitledik
-                response_schema=SectorProjectResponse,  # Çıktı kalıbını Pydantic şemamıza bağladık
+                response_mime_type="application/json",
+                response_schema=SectorProjectResponse,
                 temperature=0.7
             ),
         )
-        
-        # Gelen string formatındaki JSON yanıtını Python sözlüğüne (dict) çevirip doğrudan dönüyoruz
         return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+
+# [2. GÜN ENDPOINT'İ]: Seçilen projeye özel mimari ve yol haritası çıkaran Ajan servisi
+@app.get("/api/roadmap/{project_title}")
+def get_project_roadmap(project_title: str):
+    prompt = f"""
+    Sen PathAI platformunun 'Kariyer ve Yazılım Mimarı Ajanı'sın.
+    Kullanıcı '{project_title}' isimli yapay zeka/veri bilimi projesini geliştirmek istiyor.
+    
+    Lütfen bu proje için:
+    1. Üretim ortamına uygun (production-ready) 3 temel mimari bileşen öner ve nedenlerini açıkla.
+    2. Kullanıcının bu projeyi sıfırdan yapabilmesi için 5 günlük, mantıklı ve adımlı bir öğrenme/geliştirme yol haritası çıkar.
+    
+    ⚠️ ÇÖK ÖNEMLİ KURAL: Yanıttaki katman isimleri (layer), teknolojiler hariç tüm açıklamalar (reason), ana konular (topic) ve görevler (tasks) KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır. İngilizce metin üretme.
+    """
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ProjectProjectRoadmapResponse,
+                temperature=0.5
+            ),
+        )
+        return json.loads(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
