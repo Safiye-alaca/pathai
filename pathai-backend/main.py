@@ -68,13 +68,20 @@ class TechRadarResponse(BaseModel):
 
 # --- 4. Gün: Fikir Eleştirmen Ajanı Şemaları ---
 class ProjectEvaluationResponse(BaseModel):
-    user_idea: str       # Kullanıcının gönderdiği ham fikir
-    market_score: int    # 10 üzerinden pazar/ihtiyaç skoru
-    technical_score: int # 10 üzerinden teknik uygulanabilirlik skoru
-    strengths: List[str] # Projenin en güçlü ve avantajlı yönleri
-    weaknesses: List[str] # Projenin zayıf noktaları ve teknik riskleri
-    competitors_advice: str # Pazardaki olası rakipler ve kullanıcının ayrışması gereken nokta
-    final_verdict: str   # Kıdemli mimarın nihai yapıcı özeti ve tavsiyesi
+    user_idea: str       
+    market_score: int    
+    technical_score: int 
+    strengths: List[str] 
+    weaknesses: List[str] 
+    competitors_advice: str 
+    final_verdict: str   
+
+# --- 5. Gün: Medium / İçerik Üretici Asistanı Şemaları ---
+class MediumAssistantResponse(BaseModel):
+    target_topic: str          # İçerik üretilecek ana konu veya proje adı
+    suggested_titles: List[str] # Medium için dikkat çekici 3 adet Türkçe başlık önerisi
+    article_outline: str       # Makalenin giriş, gelişme, sonuç bölümlerini içeren Markdown formatında taslak rehberi
+    tags: List[str]            # Makale altında paylaşılabilecek popüler 5 etiket (tags)
 
 
 # =====================================================================
@@ -199,7 +206,7 @@ def evaluate_user_idea(idea: str):
     Lütfen bu fikri dürüst, gerçekçi ama yapıcı bir şekilde analiz et. 
     Skorları verirken cömert davranma, gerçekçi ol (10 üzerinden hak ettiği neyse).
     
-    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm metinler, güçlü ve zayıf yön listeleri, rakiplerle ilgili tavsiyeler ve nihai karar KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
+    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm metinler, güçlü ve zayıf yön listeleri, rakiplerle ilgili tavsiyeler und nihai karar KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
     """
     try:
         response = client.models.generate_content(
@@ -208,7 +215,36 @@ def evaluate_user_idea(idea: str):
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=ProjectEvaluationResponse,
-                temperature=0.4 # Analizin daha rasyonel ve ayakları yere basan cinsten olması için düşürdük
+                temperature=0.4
+            ),
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# [5. GÜN ENDPOINT'İ]: Proje veya konulardan teknik makale stratejisi üreten Medium Koordinatör Ajanı
+@app.get("/api/content-assistant")
+def get_medium_strategy(topic: str):
+    prompt = f"""
+    Sen PathAI platformunun 'Medium Koordinatörü ve Teknik İçerik Stratejist Ajanı'sın.
+    Kullanıcı şu teknik konu veya proje hakkında blog yazısı yazmak istiyor: "{topic}"
+    
+    Lütfen bu konu için:
+    1. Tıklanma oranı yüksek, merak uyandırıcı ve teknik 3 adet dikkat çekici Türkçe başlık üret.
+    2. Geliştiricinin altını doldurarak harika bir yazı çıkarabileceği, giriş-gelişme-sonuç bölümlerini detaylandıran zengin bir makale taslağı (outline) hazırla.
+    3. Medium'da ivme yakalayabileceği 5 adet popüler teknik etiket belirle.
+    
+    ⚠️ ÇÖK ÖNEMLİ KURAL: Önerilen başlıklar, makale taslağı ve tüm yönlendirmeler KESİNLİKLE tamamen TÜRKÇE dilinde olmalıdır. Taslağı oluştururken temiz bir Markdown formatı kullan.
+    """
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=MediumAssistantResponse,
+                temperature=0.6 # İçerik üretimi ve yaratıcılık dengesi için sıcaklığı hafif artırdık
             ),
         )
         return json.loads(response.text)
