@@ -57,14 +57,24 @@ class ProjectProjectRoadmapResponse(BaseModel):
 
 # --- 3. Gün: GitHub & Hugging Face Radarı Şemaları ---
 class TechRadarItem(BaseModel):
-    name: str           # Repo veya Model adı
-    url: str            # Erişim linki
-    description: str    # Ne işe yaradığına dair kısa Türkçe açıklama
-    metric: str         # Yıldız sayısı veya indirilme miktarı bilgi metni
+    name: str           
+    url: str            
+    description: str    
+    metric: str         
 
 class TechRadarResponse(BaseModel):
     github_trending: List[TechRadarItem]
     huggingface_trending: List[TechRadarItem]
+
+# --- 4. Gün: Fikir Eleştirmen Ajanı Şemaları ---
+class ProjectEvaluationResponse(BaseModel):
+    user_idea: str       # Kullanıcının gönderdiği ham fikir
+    market_score: int    # 10 üzerinden pazar/ihtiyaç skoru
+    technical_score: int # 10 üzerinden teknik uygulanabilirlik skoru
+    strengths: List[str] # Projenin en güçlü ve avantajlı yönleri
+    weaknesses: List[str] # Projenin zayıf noktaları ve teknik riskleri
+    competitors_advice: str # Pazardaki olası rakipler ve kullanıcının ayrışması gereken nokta
+    final_verdict: str   # Kıdemli mimarın nihai yapıcı özeti ve tavsiyesi
 
 
 # =====================================================================
@@ -128,7 +138,6 @@ def get_project_roadmap(project_title: str):
 @app.get("/api/radar")
 def get_tech_radar():
     try:
-        # 1. GitHub API'sinden yapay zeka (AI) tabanlı en popüler repoları çekiyoruz
         github_url = "https://api.github.com/search/repositories?q=topic:artificial-intelligence+sort:stars&per_page=3"
         headers = {"Accept": "application/vnd.github.v3+json"}
         gh_response = requests.get(github_url, headers=headers).json()
@@ -144,7 +153,6 @@ def get_tech_radar():
                 )
             )
 
-        # 2. Hugging Face API'sinden en popüler 3 trend modeli çekiyoruz
         hf_url = "https://huggingface.co/api/models?sort=downloads&direction=-1&limit=3"
         hf_response = requests.get(hf_url).json()
         
@@ -159,7 +167,6 @@ def get_tech_radar():
                 )
             )
 
-        # 3. Elde ettiğimiz bu canlı verileri, yapay zekaya (Gemini) göndererek Türkçe analiz ettiriyoruz
         analysis_prompt = f"""
         Aşağıda GitHub ve Hugging Face platformlarından çekilmiş canlı popüler teknoloji verileri yer almaktadır:
         GitHub Verileri: {json.dumps([item.dict() for item in gh_items])}
@@ -178,6 +185,32 @@ def get_tech_radar():
             ),
         )
         return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+
+# [4. GÜN ENDPOINT'İ]: Kullanıcının fikrini simüle eden ve eleştiren Yatırımcı/Mimar Ajanı
+@app.get("/api/evaluate")
+def evaluate_user_idea(idea: str):
+    prompt = f"""
+    Sen PathAI platformunun 'Kıdemli Yapay Zeka Girişim Mentörü ve Baş Mimarı'sın.
+    Kullanıcı sana geliştirmek istediği şu proje fikrini sunuyor: "{idea}"
+    
+    Lütfen bu fikri dürüst, gerçekçi ama yapıcı bir şekilde analiz et. 
+    Skorları verirken cömert davranma, gerçekçi ol (10 üzerinden hak ettiği neyse).
+    
+    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm metinler, güçlü ve zayıf yön listeleri, rakiplerle ilgili tavsiyeler ve nihai karar KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
+    """
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ProjectEvaluationResponse,
+                temperature=0.4 # Analizin daha rasyonel ve ayakları yere basan cinsten olması için düşürdük
+            ),
+        )
+        return json.loads(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
