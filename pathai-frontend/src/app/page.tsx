@@ -6,11 +6,12 @@ import MentorPanel from "../components/MentorPanel";
 import RadarPanel from "../components/RadarPanel";
 import EvaluatePanel from "../components/EvaluatePanel";
 import MediumPanel from "../components/MediumPanel";
-import ErrorBoundary from "../components/ErrorBoundary"; // 9. Gün: Hata Kalkanı dahil edildi
+import ErrorBoundary from "../components/ErrorBoundary"; 
+import { LanguageProvider, useLanguage } from "../context/LanguageContext"; // Kesin çalışan göreli import yolu
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 
-export default function Home() {
+function HomeContent() {
   const [activeTab, setActiveTab] = useState<"projects" | "radar" | "evaluate" | "medium">("projects");
 
   // Proje Mentorü State'leri
@@ -106,6 +107,9 @@ export default function Home() {
     }
   };
 
+  // 12. Gün: Dil sözlüğünü Provider altındaki alt bileşende güvenle çağırıyoruz
+  const { t } = useLanguage();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-100/40 text-slate-800 font-sans relative overflow-x-hidden">
       
@@ -116,18 +120,18 @@ export default function Home() {
       {/* Üst Menü */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Sabit Karşılama Alanı (Hero Section) */}
+      {/* Sabit Karşılama Alanı (Hero Section) - 12. Gün Dinamik Dil Bağlantıları */}
       <section className="max-w-7xl mx-auto px-6 pt-12 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         <div className="lg:col-span-7 space-y-4 text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 text-purple-800 text-xs font-bold border border-purple-200 animate-pulse">
-            ✨ Akıllı AI Ajanları Aktif Hale Getirildi
+            {t.hero.badge}
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight text-purple-950 leading-tight">
-            Geleceğin Yeteneklerini <br />
-            <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">Yeni ve Benzersiz Bir Yolla</span> Geliştir!
+            {t.hero.title1} <br />
+            <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">{t.hero.title2}</span> {t.hero.title3}
           </h1>
           <p className="text-slate-500 text-base max-w-xl leading-relaxed">
-            PathAI platformu ile yapay zeka projelerini tasarla, yazılım mimarını çıkar` ve öğrenme rotanı adım adım eğlenceli 3D mentorluk dünyasıyla yönet.
+            {t.hero.desc}
           </p>
         </div>
 
@@ -203,5 +207,14 @@ export default function Home() {
         )}
       </main>
     </div>
+  );
+}
+
+// Ana sarmalayıcı bileşen Context yapısının hatasız çalışmasını sağlar
+export default function Home() {
+  return (
+    <LanguageProvider>
+      <HomeContent />
+    </LanguageProvider>
   );
 }
