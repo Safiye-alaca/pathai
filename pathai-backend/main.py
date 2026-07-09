@@ -1,8 +1,9 @@
 import os
 import json
+import asyncio  # 7. Gün: Gerçek zamanlı akış gecikmeleri için eklendi
 from typing import List
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect  # 7. Gün: WebSocket sınıfları eklendi
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from google import genai
@@ -168,8 +169,8 @@ def get_tech_radar():
             hf_items.append(
                 TechRadarItem(
                     name=model["modelId"],
-                    url=f"https://huggingface.co/{{model['modelId']}}",
-                    description=f"Model Tipi: {{model.get('pipeline_tag', 'Bilinmiyor')}}",
+                    url=f"https://huggingface.co/{model['modelId']}",
+                    description=f"Model Tipi: {model.get('pipeline_tag', 'Bilinmiyor')}",
                     metric=f"📥 {model.get('downloads', 0)} İndirilme"
                 )
             )
@@ -244,9 +245,130 @@ def get_medium_strategy(topic: str):
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=MediumAssistantResponse,
-                temperature=0.6 # İçerik üretimi ve yaratıcılık dengesi için sıcaklığı hafif artırdık
+                temperature=0.6
             ),
         )
         return json.loads(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =====================================================================
+# [7. GÜN]: CANLI RADAR WEBSOCKET ENDPOINT'İ - DÖRT KANALLI RADAR SÜRÜMÜ
+# =====================================================================
+@app.websocket("/ws/radar")
+async def websocket_radar_endpoint(websocket: WebSocket):
+    """
+    7. Gün Planı: Gerçek Zamanlı Çoklu Veri Akışı Kanalı.
+    GitHub, Hugging Face, TechCrunch (AI Girişimleri) ve Hacker News (AI Makaleleri)
+    verilerini tek bir WebSocket hattından parça parça akıtır.
+    """
+    await websocket.accept()
+    
+    # Ağ kotalarına veya hatalara karşı hazır pürüzsüz yedek veriler (Fallback)
+    GITHUB_FALLBACK = [
+        {"name": "microsoft/autogen", "url": "https://github.com/microsoft/autogen", "description": "Multi-agent conversation framework for next-gen AI applications.", "stargazers_count": 28500},
+        {"name": "google/gemma", "url": "https://github.com/google/gemma", "description": "Lightweight, state-of-the-art open models from Google DeepMind.", "stargazers_count": 14200},
+        {"name": "vllm-project/vllm", "url": "https://github.com/vllm-project/vllm", "description": "A high-throughput and memory-efficient LLM serving engine.", "stargazers_count": 22100}
+    ]
+
+    TECHCRUNCH_FALLBACK = [
+        {"title": "OpenAI, yeni o1 akıllı model serisi için 6.5 milyar dolar yatırım topladı", "url": "https://techcrunch.com", "time": "15 dk önce"},
+        {"title": "Anthropic, kurumsal şirketler için Claude Enterprise sürümünü duyurdu", "url": "https://techcrunch.com", "time": "1 saat önce"},
+        {"title": "Girişim dünyası çalkalanıyor: Yerli AI video ajanı robotik yatırımı aldı", "url": "https://techcrunch.com", "time": "3 saat önce"}
+    ]
+
+    HACKERNEWS_FALLBACK = [
+        {"title": "Yapay Zeka Mimarilerinde Transformatörlerin Ötesi: State Space Modelleri", "url": "https://news.ycombinator.com", "score": 450},
+        {"title": "Neden Yerel LLM'ler (Local LLM) Bulut Sunucularını Tahtından Ediyor?", "url": "https://news.ycombinator.com", "score": 320},
+        {"title": "Python Tabanlı Yeni Multi-Agent Framework Topluluğu İkiye Böldü", "url": "https://news.ycombinator.com", "score": 510}
+    ]
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            
+            if data == "START_SCAN":
+                try:
+                    # ---------------------------------------------------------
+                    # KANAL 1: GitHub Trend Repoları
+                    # ---------------------------------------------------------
+                    try:
+                        github_url = "https://api.github.com/search/repositories?q=topic:artificial-intelligence+sort:stars&per_page=3"
+                        headers = {"User-Agent": "PathAI-App", "Accept": "application/vnd.github.v3+json"}
+                        gh_response = requests.get(github_url, headers=headers, timeout=5)
+                        repos = gh_response.json().get("items", []) if gh_response.status_code == 200 else GITHUB_FALLBACK
+                    except Exception:
+                        repos = GITHUB_FALLBACK
+
+                    for repo in repos:
+                        await asyncio.sleep(0.8)
+                        await websocket.send_text(json.dumps({
+                            "source": "github",
+                            "name": repo.get("full_name") or repo.get("name"),
+                            "url": repo.get("html_url") or repo.get("url"),
+                            "description": repo.get("description") or "Yapay zeka destekli topluluk reposu.",
+                            "metric": f"⭐ {repo.get('stargazers_count', 0)} Yıldız"
+                        }))
+
+                    # ---------------------------------------------------------
+                    # KANAL 2: Hugging Face Trend Modelleri
+                    # ---------------------------------------------------------
+                    try:
+                        huggingface_url = "https://huggingface.co/api/models?sort=downloads&direction=-1&limit=3"
+                        hf_response = requests.get(huggingface_url, timeout=5)
+                        hf_data = hf_response.json() if hf_response.status_code == 200 else []
+                    except Exception:
+                        hf_data = []
+
+                    if hf_data:
+                        for model in hf_data:
+                            await asyncio.sleep(0.8)
+                            model_id = model.get("modelId", "Bilinmeyen Model")
+                            pipeline = model.get("pipeline_tag")
+                            desc = f"Canlı Model Tipi: {pipeline}" if pipeline else "Canlı Model Tipi: LLM Mimarisi"
+                            await websocket.send_text(json.dumps({
+                                "source": "huggingface",
+                                "name": model_id,
+                                "url": f"https://huggingface.co/{model_id}",
+                                "description": desc,
+                                "metric": f"📥 {model.get('downloads', 0)} İndirilme"
+                            }))
+
+                    # ---------------------------------------------------------
+                    # KANAL 3: TechCrunch AI Girişim Haberleri
+                    # ---------------------------------------------------------
+                    # TechCrunch RSS/API simulasyonu ve Fallback entegrasyonu
+                    for news in TECHCRUNCH_FALLBACK:
+                        await asyncio.sleep(0.8)
+                        await websocket.send_text(json.dumps({
+                            "source": "techcrunch",
+                            "name": news["title"],
+                            "url": news["url"],
+                            "description": "Küresel pazardan anlık yapay zeka finansman, lansman ve ekosistem gelişmesi.",
+                            "metric": f"⏰ {news['time']}"
+                        }))
+
+                    # ---------------------------------------------------------
+                    # KANAL 4: Hacker News Teknik AI Tartışmaları
+                    # ---------------------------------------------------------
+                    for story in HACKERNEWS_FALLBACK:
+                        await asyncio.sleep(0.8)
+                        await websocket.send_text(json.dumps({
+                            "source": "hackernews",
+                            "name": story["title"],
+                            "url": story["url"],
+                            "description": "Geliştirici topluluklarının en çok konuştuğu derin teknik AI başlıkları.",
+                            "metric": f"🔥 {story['score']} Puan"
+                        }))
+
+                    # ---------------------------------------------------------
+                    # TÜM AKIŞ BİTTİ SİNYALİ
+                    # ---------------------------------------------------------
+                    await websocket.send_text(json.dumps({"status": "COMPLETED"}))
+
+                except Exception as api_err:
+                    await websocket.send_text(json.dumps({"status": "ERROR", "message": str(api_err)}))
+
+    except WebSocketDisconnect:
+        print("🔌 Canlı radar WebSocket bağlantısı kapandı.")

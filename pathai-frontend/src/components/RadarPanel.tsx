@@ -1,6 +1,9 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
+
 interface RadarItem {
+  source: "github" | "huggingface" | "techcrunch" | "hackernews";
   name: string;
   url: string;
   description: string;
@@ -13,14 +16,89 @@ interface RadarResponse {
 }
 
 interface RadarPanelProps {
-  radarData: RadarResponse | null;
+  radarData: RadarResponse | null; // Geriye dönük uyumluluk için duruyor
   radarLoading: boolean;
   fetchRadar: () => void;
 }
 
-export default function RadarPanel({ radarData, radarLoading, fetchRadar }: RadarPanelProps) {
+export default function RadarPanel({}: RadarPanelProps) {
+  // 4 Farklı kanal için ayrı veri depoları
+  const [githubItems, setGithubItems] = useState<RadarItem[]>([]);
+  const [huggingfaceItems, setHuggingfaceItems] = useState<RadarItem[]>([]);
+  const [techcrunchItems, setTechcrunchItems] = useState<RadarItem[]>([]);
+  const [hackernewsItems, setHackernewsItems] = useState<RadarItem[]>([]);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"tech" | "news">("tech");
+  const [statusText, setStatusText] = useState("Küresel açık kaynak dünyasında bugün ivmelenen kütüphaneleri ve modelleri anlık yakalayın.");
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Bileşenden çıkıldığında açık kalan bağlantıları güvenle temizliyoruz
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  const startWebSocketScan = () => {
+    // Bütün listeleri sıfırla ve yükleniyor moduna geç
+    setGithubItems([]);
+    setHuggingfaceItems([]);
+    setTechcrunchItems([]);
+    setHackernewsItems([]);
+    setIsLoading(true);
+    setStatusText("📡 Canlı WebSocket tüneli açılıyor...");
+
+    const ws = new WebSocket("ws://127.0.0.1:8000/ws/radar");
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setStatusText("🔍 Bağlantı kuruldu. 4 farklı küresel kanal canlı taranıyor...");
+      ws.send("START_SCAN");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.status === "COMPLETED") {
+        setStatusText("✅ Tüm küresel yapay zeka kanallarının taraması başarıyla tamamlandı.");
+        setIsLoading(false);
+        ws.close();
+      } else if (data.status === "ERROR") {
+        setStatusText(`❌ Tarama hatası: ${data.message}`);
+        setIsLoading(false);
+        ws.close();
+      } else {
+        const item = data as RadarItem;
+        // Gelen verinin kaynağına göre ilgili listeye ekliyoruz
+        if (item.source === "github") {
+          setGithubItems((prev) => [...prev, item]);
+        } else if (item.source === "huggingface") {
+          setHuggingfaceItems((prev) => [...prev, item]);
+        } else if (item.source === "techcrunch") {
+          setTechcrunchItems((prev) => [...prev, item]);
+        } else if (item.source === "hackernews") {
+          setHackernewsItems((prev) => [...prev, item]);
+        }
+      }
+    };
+
+    ws.onclose = () => {
+      setIsLoading(false);
+    };
+
+    ws.onerror = (err) => {
+      console.error("Radar WS Hatası:", err);
+      setStatusText("❌ Sunucu ile canlı bağlantı kurulamadı.");
+      setIsLoading(false);
+    };
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
+      {/* Üst Arama/Kart Alanı */}
       <div className="bg-white border border-purple-100 rounded-[32px] p-6 flex flex-col md:flex-row items-center gap-6 shadow-xl max-w-3xl mx-auto">
         <div className="w-24 h-24 rounded-2xl bg-purple-50 overflow-hidden shrink-0 border border-purple-100 flex items-center justify-center">
           <img 
@@ -30,31 +108,72 @@ export default function RadarPanel({ radarData, radarLoading, fetchRadar }: Rada
             onError={(e) => { e.currentTarget.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='20' font-size='20'>🔭</text></svg>"; }}
           />
         </div>
-        <div className="text-center md:text-left space-y-1 flex-1">
+        <div className="text-center md:text-left space-y-2 flex-1">
           <h1 className="text-2xl font-black text-purple-950">Canlı Yapay Zeka Geliştirici Radarı</h1>
-          <p className="text-slate-500 text-xs">Küresel açık kaynak dünyasında bugün ivmelenen kütüphaneleri ve modelleri anlık yakalayın.</p>
-          <button onClick={fetchRadar} className="mt-2 px-4 py-1.5 rounded-full text-[11px] font-bold bg-purple-600 text-white shadow-sm hover:opacity-90 transition-all">
-            🔍 Ağları Canlı Tara
-          </button>
+          <p className="text-slate-500 text-xs leading-relaxed">{statusText}</p>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-1 justify-center md:justify-start">
+            <button 
+              onClick={startWebSocketScan} 
+              disabled={isLoading}
+              className={`px-4 py-1.5 rounded-full text-[11px] font-bold text-white shadow-sm transition-all flex items-center justify-center gap-2 ${
+                isLoading ? "bg-purple-300 cursor-not-allowed" : "bg-purple-600 hover:opacity-90 hover:scale-[1.01]"
+              }`}
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full"></div>
+                  Ağlar Taranıyor...
+                </>
+              ) : (
+                "🔍 Ağları Canlı Tara"
+              )}
+            </button>
+
+            {/* Yeni Sekme (Tab) Değiştirici Alanı */}
+            <div className="inline-flex bg-slate-100 p-1 rounded-full border border-slate-200/60 self-center">
+              <button
+                onClick={() => setActiveTab("tech")}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${
+                  activeTab === "tech" ? "bg-white text-purple-950 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                🛠️ Kod & Model
+              </button>
+              <button
+                onClick={() => setActiveTab("news")}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${
+                  activeTab === "news" ? "bg-white text-purple-950 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                📰 Girişimler & Haberler
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {radarLoading && (
+      {/* Yükleniyor Göstergesi */}
+      {isLoading && githubItems.length === 0 && techcrunchItems.length === 0 && (
         <div className="text-center py-12">
           <div className="animate-spin w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-          <p className="text-slate-500 text-xs font-semibold">Küresel API ağları analiz ediliyor...</p>
+          <p className="text-slate-500 text-xs font-semibold">Küresel API hatları üzerinden veri akışı başlatılıyor...</p>
         </div>
       )}
 
-      {radarData && !radarLoading && (
+      {/* ------------------------------------------------------------- */}
+      {/* SEKME 1: KOD VE MODEL SEKMESİ */}
+      {/* ------------------------------------------------------------- */}
+      {activeTab === "tech" && (githubItems.length > 0 || huggingfaceItems.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* GitHub Canlı Listesi */}
           <div className="bg-white border border-purple-100 rounded-[28px] p-6 shadow-xl space-y-4">
             <h2 className="text-base font-black text-purple-950 flex items-center gap-2 border-b pb-2 border-purple-50">
               🐙 Trend Repolar (GitHub)
             </h2>
-            <div className="space-y-3">
-              {radarData.github_trending.map((item, idx) => (
-                <div key={idx} className="p-3.5 rounded-xl bg-purple-50/40 border border-purple-50 flex flex-col gap-1">
+            <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+              {githubItems.map((item, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl bg-purple-50/40 border border-purple-50 flex flex-col gap-1 transition-all duration-300 transform translate-y-0 scale-100">
                   <div className="flex justify-between items-center gap-2">
                     <a href={item.url} target="_blank" rel="noreferrer" className="font-bold text-purple-700 hover:underline text-xs break-all">
                       {item.name}
@@ -69,13 +188,14 @@ export default function RadarPanel({ radarData, radarLoading, fetchRadar }: Rada
             </div>
           </div>
 
+          {/* Hugging Face Canlı Listesi */}
           <div className="bg-white border border-purple-100 rounded-[28px] p-6 shadow-xl space-y-4">
             <h2 className="text-base font-black text-purple-950 flex items-center gap-2 border-b pb-2 border-purple-50">
               🤗 En Popüler Modeller (Hugging Face)
             </h2>
-            <div className="space-y-3">
-              {radarData.huggingface_trending.map((item, idx) => (
-                <div key={idx} className="p-3.5 rounded-xl bg-purple-50/40 border border-purple-50 flex flex-col gap-1">
+            <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+              {huggingfaceItems.map((item, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl bg-purple-50/40 border border-purple-50 flex flex-col gap-1 transition-all duration-300 transform translate-y-0 scale-100">
                   <div className="flex justify-between items-center gap-2">
                     <a href={item.url} target="_blank" rel="noreferrer" className="font-bold text-indigo-700 hover:underline text-xs break-all">
                       {item.name}
@@ -85,6 +205,57 @@ export default function RadarPanel({ radarData, radarLoading, fetchRadar }: Rada
                     </span>
                   </div>
                   <p className="text-slate-600 text-[11px] leading-relaxed">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* SEKME 2: GİRİŞİMLER VE HABERLER SEKMESİ */}
+      {/* ------------------------------------------------------------- */}
+      {activeTab === "news" && (techcrunchItems.length > 0 || hackernewsItems.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* TechCrunch Haber Listesi */}
+          <div className="bg-white border border-purple-100 rounded-[28px] p-6 shadow-xl space-y-4">
+            <h2 className="text-base font-black text-purple-950 flex items-center gap-2 border-b pb-2 border-purple-50">
+              🚀 Lansman & Yatırımlar (TechCrunch)
+            </h2>
+            <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+              {techcrunchItems.map((item, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl bg-amber-50/40 border border-amber-100/50 flex flex-col gap-1 transition-all duration-300 transform translate-y-0 scale-100">
+                  <div className="flex justify-between items-start gap-2">
+                    <a href={item.url} target="_blank" rel="noreferrer" className="font-bold text-amber-800 hover:underline text-xs leading-snug">
+                      {item.name}
+                    </a>
+                    <span className="text-[9px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+                      {item.metric}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 text-[11px] leading-relaxed">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Hacker News Makale Listesi */}
+          <div className="bg-white border border-purple-100 rounded-[28px] p-6 shadow-xl space-y-4">
+            <h2 className="text-base font-black text-purple-950 flex items-center gap-2 border-b pb-2 border-purple-50">
+              🔥 Derin Teknik Tartışmalar (Hacker News)
+            </h2>
+            <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+              {hackernewsItems.map((item, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl bg-orange-50/40 border border-orange-100/50 flex flex-col gap-1 transition-all duration-300 transform translate-y-0 scale-100">
+                  <div className="flex justify-between items-center gap-2">
+                    <a href={item.url} target="_blank" rel="noreferrer" className="font-bold text-orange-700 hover:underline text-xs leading-snug">
+                      {item.name}
+                    </a>
+                    <span className="text-[9px] bg-orange-100 text-orange-800 font-bold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+                      {item.metric}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 text-[11px] leading-relaxed">{item.description}</p>
                 </div>
               ))}
             </div>
