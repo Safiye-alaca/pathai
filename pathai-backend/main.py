@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from pydantic import BaseModel
+from typing import List
 
 # 1. Ortam Değişkenlerini ve Yapay Zeka İstemcisini Yüklüyoruz
 load_dotenv()
@@ -76,6 +78,26 @@ class ProjectEvaluationResponse(BaseModel):
     weaknesses: List[str] 
     competitors_advice: str 
     final_verdict: str   
+
+# --- 8. Gün: Geliştirici Proje Eleştirmen Şeması ---
+class DevEvaluationResponse(BaseModel):
+    user_project: str
+    technical_complexity_score: int # 10 üzerinden teknik zorluk
+    cv_impact_score: int            # 10 üzerinden CV'ye/Mülakatlara etkisi
+    recommended_stack: List[str]    # Kullanması gereken en iyi kütüphaneler/teknolojiler
+    engineering_challenges: List[str] # Bu projeyi yaparken karşılaşacağı zorlu mühendislik problemleri
+    learning_outcomes: List[str]     # Bu projeyi bitirdiğinde kazanacağı yetkinlikler
+    final_mentor_verdict: str        # Kıdemli mühendisin nihai tavsiyesi
+
+# --- 8. Gün: Proje Öneri Şemaları ---
+class ProjectSuggestionItem(BaseModel):
+    title: str        # Proje Başlığı
+    short_desc: str   # Kısa Özet (Kullanıcı tıkladığında input'a dolacak metin)
+    difficulty: str   # Başlangıç, Orta, İleri
+
+class ProjectSuggestionsResponse(BaseModel):
+    area: str
+    suggestions: List[ProjectSuggestionItem]
 
 # --- 5. Gün: Medium / İçerik Üretici Asistanı Şemaları ---
 class MediumAssistantResponse(BaseModel):
@@ -223,6 +245,58 @@ def evaluate_user_idea(idea: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# [8. GÜN ENDPOINT'İ]: Geliştiricinin teknik proje fikrini eleştiren Senior Tech Lead Ajanı
+@app.get("/api/evaluate-dev")
+def evaluate_dev_project(project: str):
+    prompt = f"""
+    Sen PathAI platformunun 'Kıdemli Yazılım Mimarı ve Bilgisayar Mühendisliği Mentorü'sün.
+    Bir bilgisayar mühendisliği öğrencisi/geliştirici, kendini teknik olarak geliştirmek için şu projeyi yapmak istiyor: "{project}"
+    
+    Lütfen bu projeyi bir ticarileşme fikri olarak DEĞİL, tamamen mühendislik ve kariyer gelişimi açısından analiz et.
+    - Teknik zorluk ve CV etkisine dürüst skorlar ver (cömert davranma).
+    - Hangi zorlu mühendislik problemleriyle (örn: race condition, veri tutarlılığı, önbellekleme vb.) karşılaşabileceğini belirt.
+    
+    ⚠️ ÇÖK ÖNEMLİ KURAL: Önerilen teknoloji isimleri hariç üreteceğin tüm metinler, maddeler ve nihai mentor kararı KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
+    """
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=DevEvaluationResponse,
+                temperature=0.5
+            ),
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# [8. GÜN ENDPOINT'İ]: Geliştiricilere Alanlarına Göre Özgün Proje Fikirleri Üreten Ajan
+@app.get("/api/suggest-projects", response_model=ProjectSuggestionsResponse)
+def suggest_projects(area: str, level: str = "Orta"):
+    prompt = f"""
+    Sen PathAI platformunun 'Yazılım Kariyer ve Proje Mentörü'sün.
+    Geliştirici adayı kendini teknik olarak geliştirmek için "{area}" alanında ve "{level}" seviyesinde proje yapmak istiyor ama fikri yok.
+    
+    Lütfen ona bu alanda yapabileceği, sıradan (to-do list, basit blog gibi) olmayan, CV'sinde parlayacak ve mülakatlarda anlatabileceği 4 farklı özgün proje fikri öner.
+    Her projenin 'short_desc' alanına projenin ne işe yaradığını ve temel kapsamını 1-2 cümleyle dürüstçe yaz.
+    
+    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm başlıklar ve açıklamalar KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
+    """
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ProjectSuggestionsResponse,
+                temperature=0.85 # Farklı buton tetiklemelerinde özgün fikirler üretebilmesi için sıcaklığı biraz yüksek tutuyoruz
+            ),
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # [5. GÜN ENDPOINT'İ]: Proje veya konulardan teknik makale stratejisi üreten Medium Koordinatör Ajanı
 @app.get("/api/content-assistant")
