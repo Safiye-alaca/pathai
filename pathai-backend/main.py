@@ -1,16 +1,53 @@
 import os
 import json
 import asyncio  # 7. Gün: Gerçek zamanlı akış gecikmeleri için eklendi
+import datetime
 from typing import List
 import requests
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect  # 7. Gün: WebSocket sınıfları eklendi
+
+# FastAPI Bileşenleri
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# Google GenAI SDK
 from google import genai
 from google.genai import types
+
+# SQLAlchemy Veri Tabanı Bileşenleri
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session  # <-- 11. Gün için Session burada tek seferde durmalı
+
+# Çevre Değişkenleri
 from dotenv import load_dotenv
-from pydantic import BaseModel
-from typing import List
+
+# SQLite Veri Tabanı Bağlantı Ayarları
+DATABASE_URL = "sqlite:///./pathai.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# [11. GÜN]: Kalıcı Hafıza İçin Değerlendirme Geçmişi Tablo Modeli
+class EvaluationHistory(Base):
+    __tablename__ = "evaluation_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mode = Column(String, index=True)       # 'startup' veya 'dev'
+    user_input = Column(Text)               # Kullanıcının yazdığı fikir/proje
+    ai_response = Column(Text)              # Gelen JSON yanıtın metin hali
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+# Tabloları veri tabanında otomatik oluşturuyoruz
+Base.metadata.create_all(bind=engine)
+
+# Veri tabanı oturumu (session) için bağımlılık enjeksiyonu (Dependency)
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # 1. Ortam Değişkenlerini ve Yapay Zeka İstemcisini Yüklüyoruz
 load_dotenv()
@@ -261,18 +298,9 @@ def get_tech_radar():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# [4. GÜN ENDPOINT'İ]: Kullanıcının fikrini simüle eden ve eleştiren Yatırımcı/Mimar Ajanı
 @app.get("/api/evaluate")
-def evaluate_user_idea(idea: str):
-    prompt = f"""
-    Sen PathAI platformunun 'Kıdemli Yapay Zeka Girişim Mentörü ve Baş Mimarı'sın.
-    Kullanıcı sana geliştirmek istediği şu proje fikrini sunuyor: "{idea}"
-    
-    Lütfen bu fikri dürüst, gerçekçi ama yapıcı bir şekilde analiz et. 
-    Skorları verirken cömert davranma, gerçekçi ol (10 üzerinden hak ettiği neyse).
-    
-    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm metinler, güçlü ve zayıf yön listeleri, rakiplerle ilgili tavsiyeler und nihai karar KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
-    """
+def evaluate_idea(idea: str, db: Session = Depends(get_db)):
+    # ... mevcut prompt ve response üreten kodların aynen kalıyor ...
     try:
         response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -280,14 +308,25 @@ def evaluate_user_idea(idea: str):
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=ProjectEvaluationResponse,
-                temperature=0.4
+                temperature=0.5
             ),
         )
-        return json.loads(response.text)
+        ai_data = json.loads(response.text)
+        
+        # [11. GÜN SİHRİ]: Analizi Veri Tabanına Kaydet
+        db_record = EvaluationHistory(
+            mode="startup",
+            user_input=idea,
+            ai_response=response.text
+        )
+        db.add(db_record)
+        db.commit()
+        
+        return ai_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# [8. GÜN ENDPOINT'İ]: Geliştiricinin teknik proje fikrini eleştiren Senior Tech Lead Ajanı
+
 @app.get("/api/evaluate-dev")
 def evaluate_dev_project(project: str):
     prompt = f"""
@@ -301,6 +340,7 @@ def evaluate_dev_project(project: str):
     ⚠️ ÇÖK ÖNEMLİ KURAL: Önerilen teknoloji isimleri hariç üreteceğin tüm metinler, maddeler ve nihai mentor kararı KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
     """
     try:
+        # 1. Gemini API'den yanıtı kararlı şekilde alıyoruz
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
@@ -310,8 +350,29 @@ def evaluate_dev_project(project: str):
                 temperature=0.5
             ),
         )
-        return json.loads(response.text)
+        
+        # 2. Gelen metni JSON nesnesine çeviriyoruz (Frontend'e dönecek veri)
+        ai_data = json.loads(response.text)
+        
+        # 3. VERİ TABANI KAYDI (Hata almaması için try/except içine izole ettik)
+        try:
+            db = SessionLocal()
+            db_record = EvaluationHistory(
+                mode="dev",
+                user_input=project,
+                ai_response=response.text  # Gelen saf string'i kaydediyoruz, çakışma ihtimali sıfır!
+            )
+            db.add(db_record)
+            db.commit()
+            db.close()
+        except Exception as db_err:
+            # Veri tabanında bir sorun çıksa bile ana akışı bozma, loga bas ve devam et
+            print(f"⚠️ [SQLITE GEÇMİŞ KAYIT HATASI]: {str(db_err)}")
+            
+        return ai_data
+
     except Exception as e:
+        # Eğer Gemini veya JSON tarafında bir patlama olursa 500 fırlat
         raise HTTPException(status_code=500, detail=str(e))
 
 # [8. GÜN ENDPOINT'İ]: Geliştiricilere Alanlarına Göre Özgün Proje Fikirleri Üreten Ajan
@@ -531,3 +592,19 @@ def generate_radar_summary(payload: RadarSummaryRequest):
         return json.loads(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+# [11. GÜN ENDPOINT'İ]: Kullanıcının geçmiş simülasyon kayıtlarını getiren servis
+@app.get("/api/evaluation-history")
+def get_evaluation_history(db: Session = Depends(get_db)):
+    records = db.query(EvaluationHistory).order_by(EvaluationHistory.created_at.desc()).all()
+    
+    formatted_records = []
+    for r in records:
+        formatted_records.append({
+            "id": r.id,
+            "mode": r.mode,
+            "user_input": r.user_input,
+            "ai_response": json.loads(r.ai_response),
+            "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        })
+    return formatted_records

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface EvaluationResponse {
   user_idea: string;
@@ -18,10 +18,18 @@ interface ProjectSuggestion {
   difficulty: string;
 }
 
+interface HistoryItem {
+  id: number;
+  mode: "startup" | "dev";
+  user_input: string;
+  ai_response: any;
+  created_at: string;
+}
+
 interface EvaluatePanelProps {
   idea: string;
   setIdea: (val: string) => void;
-  evaluationData: EvaluationResponse | null; // Geriye dönük uyumluluk için duruyor
+  evaluationData: EvaluationResponse | null;
   evaluationLoading: boolean;
   fetchEvaluation: () => void;
 }
@@ -30,6 +38,10 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
   const [mode, setMode] = useState<"startup" | "dev">("startup");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 11. Gün: Geçmiş Takip State'leri
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Modlara özel dinamik sonuç state'leri
   const [startupData, setStartupData] = useState<any>(null);
@@ -40,6 +52,37 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
   const [selectedArea, setSelectedArea] = useState("E-Ticaret");
   const [suggestions, setSuggestions] = useState<ProjectSuggestion[]>([]);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
+
+  // Bileşen yüklendiğinde geçmiş verileri veri tabanından çekelim
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/evaluation-history");
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data);
+      }
+    } catch (err) {
+      console.error("Geçmiş yüklenirken hata:", err);
+    }
+  };
+
+  // Geçmişten eski bir kayda tıklandığında ekrana geri getiren fonksiyon
+  const handleSelectHistoryItem = (item: HistoryItem) => {
+    setMode(item.mode);
+    setIdea(item.user_input);
+    if (item.mode === "startup") {
+      setStartupData(item.ai_response);
+      setDevData(null);
+    } else {
+      setDevData(item.ai_response);
+      setStartupData(null);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleAction = async () => {
     if (!idea.trim()) return;
@@ -63,6 +106,9 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
       } else {
         setDevData(data);
       }
+
+      // Analiz başarılıysa geçmiş listesini anlık güncelle
+      fetchHistory();
     } catch (err: any) {
       setError(err.message || "Bağlantı hatası.");
     } finally {
@@ -87,7 +133,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto animate-fade-in">
-      {/* Üst Başlık, Mod Seçimi ve Öneri Tetikleyici */}
+      {/* Üst Başlık ve Mod Seçimi */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 overflow-hidden flex items-center justify-center shrink-0">
@@ -196,13 +242,60 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
         </div>
       )}
 
+      {/* 11. GÜN: GEÇMİŞİ AÇMA ŞERİDİ (INPUTUN HEMEN ÜSTÜNDE) */}
+      <div className="flex justify-between items-center bg-slate-50 border border-slate-200/60 p-3 rounded-2xl text-left">
+        <span className="text-xs text-slate-500 font-medium">📜 Önceki analizlerini ve yapay zeka skorlarını görmek ister misin?</span>
+        <button
+          onClick={() => {
+            setShowHistory(!showHistory);
+            if (!showHistory) fetchHistory();
+          }}
+          className="text-[11px] bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-xl font-black shadow-sm transition-all whitespace-nowrap"
+        >
+          {showHistory ? "📋 Geçmişi Gizle" : "📋 Analiz Geçmişim"}
+        </button>
+      </div>
+
+      {/* 11. GÜN: VERİ TABANINDAN GELEN GEÇMİŞ PANELİ ARAYÜZÜ */}
+      {showHistory && (
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-lg space-y-3 animate-slide-up text-left">
+          <h3 className="text-xs font-black text-slate-800">📜 Önceki Değerlendirmelerin (Kalıcı Veri Tabanı Kayıtları)</h3>
+          {history.length === 0 ? (
+            <p className="text-[11px] text-slate-400">Henüz kaydedilmiş bir simülasyon geçmişiniz bulunmuyor.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
+              {history.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleSelectHistoryItem(item)}
+                  className="p-3 border border-slate-100 hover:border-purple-300 bg-slate-50/50 rounded-xl cursor-pointer transition-all flex flex-col justify-between text-left"
+                >
+                  <div>
+                    <div className="flex justify-between items-center gap-2 mb-1">
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                        item.mode === "startup" ? "bg-purple-100 text-purple-700" : "bg-indigo-100 text-indigo-700"
+                      }`}>
+                        {item.mode === "startup" ? "Startup" : "Dev"}
+                      </span>
+                      <span className="text-[9px] text-slate-400">{item.created_at}</span>
+                    </div>
+                    <p className="text-slate-700 font-bold text-xs truncate">{item.user_input}</p>
+                  </div>
+                  <span className="text-[10px] text-purple-600 font-bold mt-2 text-right block hover:underline">Sonuçları Yükle →</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Input Form Alanı */}
       <div className="bg-white border border-purple-100 rounded-3xl p-4 shadow-xl flex gap-3">
         <input
           type="text"
           placeholder={mode === "startup"
             ? "Örn: Akıllı kameralarla lojistik depolarında paket hasar tespiti yapan yapay zeka..."
-            : "Örn: Akıllı kameralarla lojistik depolarında paket hasar tespiti yapan yapay zeka..."
+            : "Örn: PDF dokümanları üzerinde semantik arama ve RAG mimarisi kuracak bir backend projesi..."
           }
           value={idea}
           onChange={(e) => setIdea(e.target.value)}
@@ -225,9 +318,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* PANEL 1: STARTUP MODU ÇIKTILARI */}
-      {/* ------------------------------------------------------------- */}
+      {/* --- STARTUP MODU ÇIKTILARI --- */}
       {startupData && mode === "startup" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start animate-slide-up">
           <div className="space-y-4">
@@ -268,9 +359,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* PANEL 2: GELİŞTİRİCİ (DEV) MODU ÇIKTILARI */}
-      {/* ------------------------------------------------------------- */}
+      {/* --- GELİŞTİRİCİ (DEV) MODU ÇIKTILARI --- */}
       {devData && mode === "dev" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start animate-slide-up">
           <div className="space-y-4">
