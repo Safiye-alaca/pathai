@@ -6,6 +6,7 @@ import MentorPanel from "../components/MentorPanel";
 import RadarPanel from "../components/RadarPanel";
 import EvaluatePanel from "../components/EvaluatePanel";
 import MediumPanel from "../components/MediumPanel";
+import ErrorBoundary from "../components/ErrorBoundary"; // 9. Gün: Hata Kalkanı dahil edildi
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 
@@ -126,7 +127,7 @@ export default function Home() {
             <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">Yeni ve Benzersiz Bir Yolla</span> Geliştir!
           </h1>
           <p className="text-slate-500 text-base max-w-xl leading-relaxed">
-            PathAI platformu ile yapay zeka projelerini tasarla, yazılım mimarını çıkar ve öğrenme rotanı adım adım eğlenceli 3D mentorluk dünyasıyla yönet.
+            PathAI platformu ile yapay zeka projelerini tasarla, yazılım mimarını çıkar` ve öğrenme rotanı adım adım eğlenceli 3D mentorluk dünyasıyla yönet.
           </p>
         </div>
 
@@ -152,45 +153,53 @@ export default function Home() {
       {/* Dinamik Sekme İçerikleri */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === "projects" && (
-          <MentorPanel
-            sector={sector}
-            setSector={setSector}
-            sectorData={sectorData}
-            sectorLoading={sectorLoading}
-            selectedProject={selectedProject}
-            roadmapData={roadmapData}
-            roadmapLoading={roadmapLoading}
-            fetchProjects={fetchProjects}
-            fetchRoadmap={fetchRoadmap}
-          />
+          <ErrorBoundary fallbackTitle="Proje Mentorü Modülü Şu An Devre Dışı">
+            <MentorPanel
+              sector={sector}
+              setSector={setSector}
+              sectorData={sectorData}
+              sectorLoading={sectorLoading}
+              selectedProject={selectedProject}
+              roadmapData={roadmapData}
+              roadmapLoading={roadmapLoading}
+              fetchProjects={fetchProjects}
+              fetchRoadmap={fetchRoadmap}
+            />
+          </ErrorBoundary>
         )}
 
         {activeTab === "radar" && (
-          <RadarPanel
-            radarData={radarData}
-            radarLoading={radarLoading}
-            fetchRadar={fetchRadar}
-          />
+          <ErrorBoundary fallbackTitle="Canlı Yapay Zeka Radarı Şu An Devre Dışı">
+            <RadarPanel
+              radarData={radarData}
+              radarLoading={radarLoading}
+              fetchRadar={fetchRadar}
+            />
+          </ErrorBoundary>
         )}
 
         {activeTab === "evaluate" && (
-          <EvaluatePanel
-            idea={idea}
-            setIdea={setIdea}
-            evaluationData={evaluationData}
-            evaluationLoading={evaluationLoading}
-            fetchEvaluation={fetchEvaluation}
-          />
+          <ErrorBoundary fallbackTitle="Fikir Eleştirmeni Simülasyonu Şu An Devre Dışı">
+            <EvaluatePanel
+              idea={idea}
+              setIdea={setIdea}
+              evaluationData={evaluationData}
+              evaluationLoading={evaluationLoading}
+              fetchEvaluation={fetchEvaluation}
+            />
+          </ErrorBoundary>
         )}
 
         {activeTab === "medium" && (
-          <MediumPanel
-            mediumTopic={mediumTopic}
-            setMediumTopic={setMediumTopic}
-            mediumData={mediumData}
-            mediumLoading={mediumLoading}
-            fetchMediumStrategy={fetchMediumStrategy}
-          />
+          <ErrorBoundary fallbackTitle="Medium İçerik Asistanı Şu An Devre Dışı">
+            <MediumPanel
+              mediumTopic={mediumTopic}
+              setMediumTopic={setMediumTopic}
+              mediumData={mediumData}
+              mediumLoading={mediumLoading}
+              fetchMediumStrategy={fetchMediumStrategy}
+            />
+          </ErrorBoundary>
         )}
       </main>
     </div>

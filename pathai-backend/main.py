@@ -27,6 +27,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import time
+import logging
+
+# Loglama konfigürasyonunu yapıyoruz
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("PathAI-Observability")
+
+# [9. GÜN]: PERFORMANS VE LOGLAMA MIDDLEWARE KATMANI
+@app.middleware("http")
+async def audit_and_performance_logger(request, call_next):
+    start_time = time.time()
+    
+    # İstek detaylarını alıyoruz
+    method = request.method
+    path = request.url.path
+    
+    logger.info(format(f"📡 İSTEK BAŞLADI: {method} {path}"))
+    
+    try:
+        # İsteği bir sonraki aşamaya (endpoint'e) yönlendiriyoruz
+        response = await call_next(request)
+        
+        process_time = (time.time() - start_time) * 1000
+        status_code = response.status_code
+        
+        # Performans çıktısını terminale basıyoruz
+        logger.info(format(f"✅ İSTEK TAMAMLANDI: {method} {path} | Durum: {status_code} | Süre: {process_time:.2f}ms"))
+        
+        # Yanıt süresini tarayıcı tarafında da görebilmek için header'a ekliyoruz
+        response.headers["X-Process-Time-MS"] = f"{process_time:.2f}"
+        return response
+        
+    except Exception as exc:
+        process_time = (time.time() - start_time) * 1000
+        logger.error(format(f"❌ İSTEK ÇÖKTÜ: {method} {path} | Süre: {process_time:.2f}ms | Hata: {str(exc)}"))
+        raise exc
+
 # =====================================================================
 # 3. VERİ ŞEMALARI (PYDANTIC BASEMODELS)
 # =====================================================================
