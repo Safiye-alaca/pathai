@@ -33,6 +33,11 @@ export default function RadarPanel({}: RadarPanelProps) {
   const [statusText, setStatusText] = useState("Küresel açık kaynak dünyasında bugün ivmelenen kütüphaneleri ve modelleri anlık yakalayın.");
   const wsRef = useRef<WebSocket | null>(null);
 
+  // 10. Gün: Özetleme State'leri
+  const [isScanCompleted, setIsScanCompleted] = useState(false);
+  const [summaryData, setSummaryData] = useState<any>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
   // Bileşenden çıkıldığında açık kalan bağlantıları güvenle temizliyoruz
   useEffect(() => {
     return () => {
@@ -48,6 +53,8 @@ export default function RadarPanel({}: RadarPanelProps) {
     setHuggingfaceItems([]);
     setTechcrunchItems([]);
     setHackernewsItems([]);
+    setIsScanCompleted(false); 
+    setSummaryData(null);      
     setIsLoading(true);
     setStatusText("📡 Canlı WebSocket tüneli açılıyor...");
 
@@ -65,6 +72,7 @@ export default function RadarPanel({}: RadarPanelProps) {
       if (data.status === "COMPLETED") {
         setStatusText("✅ Tüm küresel yapay zeka kanallarının taraması başarıyla tamamlandı.");
         setIsLoading(false);
+        setIsScanCompleted(true); 
         ws.close();
       } else if (data.status === "ERROR") {
         setStatusText(`❌ Tarama hatası: ${data.message}`);
@@ -94,6 +102,35 @@ export default function RadarPanel({}: RadarPanelProps) {
       setStatusText("❌ Sunucu ile canlı bağlantı kurulamadı.");
       setIsLoading(false);
     };
+  };
+
+  // 10. Gün: Tüm ham verileri toplayıp arka plandaki Gemini RAG katmanına gönderen fonksiyon
+  const generateAIReport = async () => {
+    setSummaryLoading(true);
+    
+    const allCollectedData = [
+      ...githubItems,
+      ...huggingfaceItems,
+      ...techcrunchItems,
+      ...hackernewsItems,
+    ];
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/radar-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_data: allCollectedData }),
+      });
+
+      if (!res.ok) throw new Error("Yapay zeka rapor motoru şu an yanıt vermiyor.");
+      const data = await res.json();
+      setSummaryData(data);
+    } catch (err: any) {
+      console.error(err);
+      setStatusText(`❌ Özetleme Hatası: ${err.message}`);
+    } finally {
+      setSummaryLoading(false);
+    }
   };
 
   return (
@@ -152,6 +189,58 @@ export default function RadarPanel({}: RadarPanelProps) {
           </div>
         </div>
       </div>
+      
+      {/* 10. Gün: Tarama Bittiyse veya Veri Varsa Ortaya Çıkan Sihirli Akıllı Özet Butonu */}
+      {isScanCompleted && (
+        <div className="text-center bg-gradient-to-r from-purple-900 to-indigo-950 p-6 rounded-3xl shadow-xl text-white space-y-3 animate-slide-up">
+          <div className="text-xs text-purple-200 font-bold">🧠 Küresel AI verileri başarıyla hafızaya alındı!</div>
+          <p className="text-[11px] opacity-80 max-w-md mx-auto">Akan tüm repoları, finansman haberlerini ve teknik tartışmaları tek tıkla analiz edip günün pazar raporunu çıkartın.</p>
+          <button
+            onClick={generateAIReport}
+            disabled={summaryLoading}
+            className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 font-black text-xs text-white shadow-md hover:opacity-90 transition-all transform hover:scale-[1.01]"
+          >
+            {summaryLoading ? "Gemini Verileri Yorumluyor..." : "✨ Ajan Özetini ve Pazar Analizini Al"}
+          </button>
+        </div>
+      )}
+
+      {/* 10. Gün: Akıllı Özet Sonuç Raporu Ekranı */}
+      {summaryData && (
+        <div className="bg-white border-2 border-amber-200/60 rounded-[32px] p-6 shadow-xl space-y-6 animate-slide-up">
+          <div className="border-b pb-3 border-amber-100 flex items-center gap-2">
+            <span className="text-xl">📊</span>
+            <div>
+              <h3 className="font-black text-purple-950 text-base">Gemini Yapay Zeka Strateji Raporu (TL;DR)</h3>
+              <p className="text-slate-400 text-[10px]">Canlı taranan verilerden çıkarılan anlık küresel özet.</p>
+            </div>
+          </div>
+
+          <p className="text-slate-700 text-xs leading-relaxed bg-amber-50/30 p-4 rounded-2xl border border-amber-100/40">
+            {summaryData.tldr_summary}
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-purple-50/40 border border-purple-100 p-4 rounded-2xl space-y-2">
+              <h4 className="font-bold text-purple-950 text-xs flex items-center gap-1">🎯 Yakalanan Pazar Fırsatları</h4>
+              <ul className="space-y-1.5 pl-1">
+                {summaryData.market_opportunities?.map((o: string, i: number) => (
+                  <li key={i} className="text-slate-600 text-[11px] leading-relaxed">• {o}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="bg-indigo-50/40 border border-indigo-100 p-4 rounded-2xl space-y-2">
+              <h4 className="font-bold text-indigo-950 text-xs flex items-center gap-1">🚀 Yükselen Mimari Trendler</h4>
+              <ul className="space-y-1.5 pl-1">
+                {summaryData.architectural_trends?.map((t: string, i: number) => (
+                  <li key={i} className="text-slate-600 text-[11px] leading-relaxed">• {t}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Yükleniyor Göstergesi */}
       {isLoading && githubItems.length === 0 && techcrunchItems.length === 0 && (

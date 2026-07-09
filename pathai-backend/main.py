@@ -143,6 +143,11 @@ class MediumAssistantResponse(BaseModel):
     article_outline: str       # Makalenin giriş, gelişme, sonuç bölümlerini içeren Markdown formatında taslak rehberi
     tags: List[str]            # Makale altında paylaşılabilecek popüler 5 etiket (tags)
 
+# --- 10. Gün: Radar Veri Özetleme Şeması ---
+class RadarSummaryResponse(BaseModel):
+    tldr_summary: str        # Genel pazar gidişatının 1-2 paragraflık rafine özeti
+    market_opportunities: List[str] # Geliştiriciler ve girişimciler için acil proje fırsatları
+    architectural_trends: List[str] # Sektörde yükselen yeni yazılım ve mimari trendleri
 
 # =====================================================================
 # 4. API ENDPOINTS (AKILLI SERVİS KATMANLARI)
@@ -483,3 +488,46 @@ async def websocket_radar_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         print("🔌 Canlı radar WebSocket bağlantısı kapandı.")
+
+from pydantic import BaseModel
+
+class RadarSummaryRequest(BaseModel):
+    raw_data: List[dict]
+
+# [10. GÜN ENDPOINT'İ]: Radardan akan ham verileri akıllıca yorumlayan RAG/Özet katmanı
+@app.post("/api/radar-summary", response_model=RadarSummaryResponse)
+def generate_radar_summary(payload: RadarSummaryRequest):
+    if not payload.raw_data:
+        raise HTTPException(status_code=400, detail="Özetlenecek ham veri bulunamadı.")
+        
+    # Gelen ham veriyi prompt için temiz bir metne dönüştürüyoruz
+    formatted_context = ""
+    for idx, item in enumerate(payload.raw_data, 1):
+        formatted_context += f"[{idx}] Kaynak: {item.get('source')} | Başlık/Ad: {item.get('name')} | Açıklama: {item.get('description')}\n"
+
+    prompt = f"""
+    Sen PathAI platformunun Baş Yapay Zeka Stratejisti ve Baş Mimarı'sın.
+    Aşağıda, canlı ağlardan (GitHub, Hugging Face, TechCrunch, Hacker News) anlık olarak çekilmiş en güncel teknoloji ve pazar verileri yer almaktadır:
+    
+    {formatted_context}
+    
+    Lütfen bu verileri bütünsel olarak analiz et ve şu çıktıları üret:
+    1. 'tldr_summary': Bugün yapay zeka dünyasında tam olarak ne oluyor? Trendler nereye evriliyor? Teknik ama akıcı bir dille özetle.
+    2. 'market_opportunities': Bu verilere bakarak bir yazılımcının veya girişimcinin üretebileceği 3 stratejik ürün veya fikir fırsatı çıkar.
+    3. 'architectural_trends': Geliştiricilerin projelerinde kullanmaya başladığı mimari yaklaşımları (örn: multi-agent, local LLM serving, semantic graph vb.) listele.
+    
+    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm analiz metinleri ve maddeler KESİNLİKLE tamamen TÜRKÇE dilinde olmalıdır.
+    """
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=RadarSummaryResponse,
+                temperature=0.4
+            ),
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
