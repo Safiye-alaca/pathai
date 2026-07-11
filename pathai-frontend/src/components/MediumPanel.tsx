@@ -1,5 +1,8 @@
 "use client";
 
+import React from "react";
+import { useLanguage } from "../context/LanguageContext";
+
 interface MediumResponse {
   target_topic: string;
   suggested_titles: string[];
@@ -22,6 +25,10 @@ export default function MediumPanel({
   mediumLoading,
   fetchMediumStrategy
 }: MediumPanelProps) {
+  
+  // 13. Gün: Dil sözlüğünü aktif ediyoruz
+  const { t } = useLanguage();
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto animate-fade-in">
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center sm:text-left">
@@ -34,15 +41,15 @@ export default function MediumPanel({
           />
         </div>
         <div>
-          <h1 className="text-2xl font-black text-purple-950">Medium Topluluk Editör Ajanı</h1>
-          <p className="text-slate-500 text-xs">Yazı konunu belirle; bilgi basamaklarını tırmandıracak kancalı başlıklar ve zengin Markdown şablonları üretilsin.</p>
+          <h1 className="text-2xl font-black text-purple-950">{t.mediumPanel.title}</h1>
+          <p className="text-slate-500 text-xs">{t.mediumPanel.desc}</p>
         </div>
       </div>
 
       <div className="bg-white border border-purple-100 rounded-3xl p-4 shadow-xl flex gap-3">
         <input
           type="text"
-          placeholder="Örn: FastAPI mimarisinde Pydantic v2 validasyon kural yönetimi..."
+          placeholder={t.mediumPanel.placeholder}
           value={mediumTopic}
           onChange={(e) => setMediumTopic(e.target.value)}
           className="flex-1 px-4 py-2.5 rounded-xl bg-purple-50/30 border border-purple-100 focus:outline-none focus:border-purple-500 font-bold text-xs"
@@ -52,7 +59,7 @@ export default function MediumPanel({
           disabled={mediumLoading}
           className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs shadow-md shrink-0"
         >
-          {mediumLoading ? "Derleniyor..." : "Yazıyı Planla"}
+          {mediumLoading ? t.mediumPanel.loading : t.mediumPanel.buttonPlan}
         </button>
       </div>
 
@@ -60,7 +67,7 @@ export default function MediumPanel({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           <div className="space-y-4">
             <div className="bg-white border border-purple-100 p-4 rounded-2xl shadow-sm space-y-2">
-              <h4 className="font-bold text-purple-950 text-xs border-b pb-1">🪝 Önerilen Başlık Taslakları</h4>
+              <h4 className="font-bold text-purple-950 text-xs border-b pb-1">{t.mediumPanel.titles}</h4>
               <div className="space-y-1.5">
                 {mediumData.suggested_titles.map((title, i) => (
                   <div key={i} className="text-[11px] p-2 rounded-lg bg-purple-50 text-purple-950 font-bold leading-normal">
@@ -71,7 +78,7 @@ export default function MediumPanel({
             </div>
 
             <div className="bg-white border border-purple-100 p-4 rounded-2xl shadow-sm space-y-1.5">
-              <h4 className="font-bold text-purple-950 text-xs border-b pb-1">🏷️ Sosyal Medya Etiketleri</h4>
+              <h4 className="font-bold text-purple-950 text-xs border-b pb-1">{t.mediumPanel.tags}</h4>
               <div className="flex flex-wrap gap-1 pt-1">
                 {mediumData.tags.map((tag, i) => (
                   <span key={i} className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full border border-slate-200">

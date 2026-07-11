@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLanguage } from "../context/LanguageContext";
 
 interface EvaluationResponse {
   user_idea: string;
@@ -35,6 +36,8 @@ interface EvaluatePanelProps {
 }
 
 export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
+  const { t, language } = useLanguage();
+
   const [mode, setMode] = useState<"startup" | "dev">("startup");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +73,6 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
     }
   };
 
-  // Geçmişten eski bir kayda tıklandığında ekrana geri getiren fonksiyon
   const handleSelectHistoryItem = (item: HistoryItem) => {
     setMode(item.mode);
     setIdea(item.user_input);
@@ -98,7 +100,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
 
     try {
       const res = await fetch(endpoint);
-      if (!res.ok) throw new Error("Ajanlar analiz yaparken bir hata oluşturdu.");
+      if (!res.ok) throw new Error(language === "tr" ? "Ajanlar analiz yaparken bir hata oluşturdu." : "An error occurred while agents were analyzing.");
       const data = await res.json();
 
       if (mode === "startup") {
@@ -107,7 +109,6 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
         setDevData(data);
       }
 
-      // Analiz başarılıysa geçmiş listesini anlık güncelle
       fetchHistory();
     } catch (err: any) {
       setError(err.message || "Bağlantı hatası.");
@@ -121,7 +122,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
     setError(null);
     try {
       const res = await fetch(`http://127.0.0.1:8000/api/suggest-projects?area=${encodeURIComponent(selectedArea)}`);
-      if (!res.ok) throw new Error("Öneri ajanı şu an yanıt vermiyor.");
+      if (!res.ok) throw new Error(language === "tr" ? "Öneri ajanı şu an yanıt vermiyor." : "Suggestion agent is not responding right now.");
       const data = await res.json();
       setSuggestions(data.suggestions || []);
     } catch (err: any) {
@@ -145,8 +146,8 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
             />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-purple-950">Girişim ve Gelişim Simülasyonu</h1>
-            <p className="text-slate-500 text-xs">Proje fikrini yaz, pazar ve kod uygulanabilirlik katsayılarını rasyonelce ölçsünler.</p>
+            <h1 className="text-2xl font-black text-purple-950">{t.evaluatePanel.title}</h1>
+            <p className="text-slate-500 text-xs">{t.evaluatePanel.desc}</p>
           </div>
         </div>
 
@@ -159,7 +160,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
               }}
               className="text-[11px] bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-full font-bold hover:bg-purple-100 transition-all"
             >
-              {showSuggester ? "🔬 Önerileri Kapat" : "💡 Fikrim Yok, Öneri Al"}
+              {showSuggester ? t.evaluatePanel.buttonCloseSuggestions : t.evaluatePanel.buttonNoIdea}
             </button>
           )}
 
@@ -171,7 +172,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
                 mode === "startup" ? "bg-purple-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              🚀 Startup Modu
+              {t.evaluatePanel.buttonStartupMode}
             </button>
             <button
               onClick={() => { setMode("dev"); setStartupData(null); setDevData(null); setError(null); }}
@@ -179,7 +180,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
                 mode === "dev" ? "bg-purple-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              💻 Geliştirici Modu
+              {t.evaluatePanel.buttonDevMode}
             </button>
           </div>
         </div>
@@ -190,17 +191,17 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
         <div className="bg-purple-50/50 border border-purple-100 rounded-3xl p-5 space-y-4 animate-slide-up">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-purple-950">Odak Alanı:</span>
+              <span className="text-xs font-black text-purple-950">{t.evaluatePanel.focusArea}</span>
               <select
                 value={selectedArea}
                 onChange={(e) => setSelectedArea(e.target.value)}
                 className="rounded-xl border border-purple-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 focus:outline-none"
               >
-                <option value="E-Ticaret">🛒 E-Ticaret</option>
-                <option value="Finans (FinTech)">💳 FinTech / Finans</option>
-                <option value="Yapay Zeka Uygulamaları">🤖 Yapay Zeka & LLM</option>
-                <option value="Siber Güvenlik">🛡️ Siber Güvenlik</option>
-                <option value="Çevre ve Sosyal Etki">🌍 Çevre & Sosyal Sorumluluk</option>
+                <option value="E-Ticaret">{language === "tr" ? "🛒 E-Ticaret" : "🛒 E-Commerce"}</option>
+                <option value="Finans (FinTech)">{language === "tr" ? "💳 FinTech / Finans" : "💳 FinTech / Finance"}</option>
+                <option value="Yapay Zeka Uygulamaları">{language === "tr" ? "🤖 Yapay Zeka & LLM" : "🤖 AI & LLM Apps"}</option>
+                <option value="Siber Güvenlik">{language === "tr" ? "🛡️ Siber Güvenlik" : "🛡️ Cyber Security"}</option>
+                <option value="Çevre ve Sosyal Etki">{language === "tr" ? "🌍 Çevre & Sosyal Sorumluluk" : "🌍 Environment & Social Impact"}</option>
               </select>
             </div>
             <button
@@ -208,13 +209,13 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
               disabled={suggestionLoading}
               className="px-4 py-1.5 rounded-xl bg-purple-600 text-white font-bold text-xs shadow hover:bg-purple-700 transition-all shrink-0"
             >
-              {suggestionLoading ? "Fikirler Üretiliyor..." : "🔄 Başka Fikirler Üret"}
+              {suggestionLoading ? t.evaluatePanel.loadingSuggestions : t.evaluatePanel.buttonMoreIdeas}
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {suggestions.length === 0 && !suggestionLoading ? (
-              <p className="text-xs text-slate-400 text-center col-span-2 py-4">Bu alan için henüz fikir üretilmedi.</p>
+              <p className="text-xs text-slate-400 text-center col-span-2 py-4">{t.evaluatePanel.noSuggestions}</p>
             ) : (
               suggestions.map((item, idx) => (
                 <div
@@ -233,7 +234,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
                     <p className="text-slate-600 text-[11px] leading-relaxed">{item.short_desc}</p>
                   </div>
                   <div className="text-[10px] text-purple-600 font-bold text-right pt-2 opacity-0 group-hover:opacity-100 transition-all">
-                    Seç ve Analiz Et →
+                    {t.evaluatePanel.selectAndAnalyze}
                   </div>
                 </div>
               ))
@@ -242,9 +243,9 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
         </div>
       )}
 
-      {/* 11. GÜN: GEÇMİŞİ AÇMA ŞERİDİ (INPUTUN HEMEN ÜSTÜNDE) */}
+      {/* GEÇMİŞİ AÇMA ŞERİDİ */}
       <div className="flex justify-between items-center bg-slate-50 border border-slate-200/60 p-3 rounded-2xl text-left">
-        <span className="text-xs text-slate-500 font-medium">📜 Önceki analizlerini ve yapay zeka skorlarını görmek ister misin?</span>
+        <span className="text-xs text-slate-500 font-medium">{t.evaluatePanel.historyBanner}</span>
         <button
           onClick={() => {
             setShowHistory(!showHistory);
@@ -252,16 +253,16 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
           }}
           className="text-[11px] bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-xl font-black shadow-sm transition-all whitespace-nowrap"
         >
-          {showHistory ? "📋 Geçmişi Gizle" : "📋 Analiz Geçmişim"}
+          {showHistory ? t.evaluatePanel.buttonHideHistory : t.evaluatePanel.buttonShowHistory}
         </button>
       </div>
 
-      {/* 11. GÜN: VERİ TABANINDAN GELEN GEÇMİŞ PANELİ ARAYÜZÜ */}
+      {/* GEÇMİŞ PANELİ ARAYÜZÜ */}
       {showHistory && (
         <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-lg space-y-3 animate-slide-up text-left">
-          <h3 className="text-xs font-black text-slate-800">📜 Önceki Değerlendirmelerin (Kalıcı Veri Tabanı Kayıtları)</h3>
+          <h3 className="text-xs font-black text-slate-800">{t.evaluatePanel.historyTitle}</h3>
           {history.length === 0 ? (
-            <p className="text-[11px] text-slate-400">Henüz kaydedilmiş bir simülasyon geçmişiniz bulunmuyor.</p>
+            <p className="text-[11px] text-slate-400">{t.evaluatePanel.noHistory}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
               {history.map((item) => (
@@ -281,7 +282,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
                     </div>
                     <p className="text-slate-700 font-bold text-xs truncate">{item.user_input}</p>
                   </div>
-                  <span className="text-[10px] text-purple-600 font-bold mt-2 text-right block hover:underline">Sonuçları Yükle →</span>
+                  <span className="text-[10px] text-purple-600 font-bold mt-2 text-right block hover:underline">{t.evaluatePanel.loadResults}</span>
                 </div>
               ))}
             </div>
@@ -293,10 +294,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
       <div className="bg-white border border-purple-100 rounded-3xl p-4 shadow-xl flex gap-3">
         <input
           type="text"
-          placeholder={mode === "startup"
-            ? "Örn: Akıllı kameralarla lojistik depolarında paket hasar tespiti yapan yapay zeka..."
-            : "Örn: PDF dokümanları üzerinde semantik arama ve RAG mimarisi kuracak bir backend projesi..."
-          }
+          placeholder={mode === "startup" ? t.evaluatePanel.placeholderStartup : t.evaluatePanel.placeholderDev}
           value={idea}
           onChange={(e) => setIdea(e.target.value)}
           className="flex-1 px-4 py-2.5 rounded-xl bg-purple-50/30 border border-purple-100 focus:outline-none focus:border-purple-500 font-bold text-xs"
@@ -308,7 +306,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
             loading || !idea.trim() ? "bg-purple-300 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
           }`}
         >
-          {loading ? "Hesaplanıyor..." : "Fikri Gönder"}
+          {loading ? t.evaluatePanel.loadingSubmit : t.evaluatePanel.buttonSubmit}
         </button>
       </div>
 
@@ -318,16 +316,16 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
         </div>
       )}
 
-      {/* --- STARTUP MODU ÇIKTILARI --- */}
+      {/* STARTUP MODU ÇIKTILARI */}
       {startupData && mode === "startup" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start animate-slide-up">
           <div className="space-y-4">
             <div className="bg-gradient-to-br from-purple-700 to-purple-900 text-white p-6 rounded-2xl text-center shadow-md">
-              <span className="text-[10px] uppercase text-purple-200 font-bold">Pazar Skoru</span>
+              <span className="text-[10px] uppercase text-purple-200 font-bold">{t.evaluatePanel.marketScore}</span>
               <div className="text-3xl font-black mt-1">{startupData.market_score} / 10</div>
             </div>
             <div className="bg-gradient-to-br from-indigo-700 to-indigo-900 text-white p-6 rounded-2xl text-center shadow-md">
-              <span className="text-[10px] uppercase text-indigo-200 font-bold">Teknik Fizibilite</span>
+              <span className="text-[10px] uppercase text-indigo-200 font-bold">{t.evaluatePanel.techFeasibility}</span>
               <div className="text-3xl font-black mt-1">{startupData.technical_score} / 10</div>
             </div>
           </div>
@@ -335,47 +333,47 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
           <div className="md:col-span-2 bg-white border border-purple-100 rounded-3xl p-6 shadow-md space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-emerald-50/60 border border-emerald-100 p-4 rounded-xl">
-                <h4 className="font-bold text-emerald-900 text-xs">🟢 Güçlü Yönler</h4>
+                <h4 className="font-bold text-emerald-900 text-xs">{t.evaluatePanel.strengths}</h4>
                 <ul className="list-disc pl-4 text-[11px] text-emerald-800 space-y-1 mt-1.5">
                   {startupData.strengths?.map((s: string, i: number) => <li key={i}>{s}</li>)}
                 </ul>
               </div>
               <div className="bg-rose-50/60 border border-rose-100 p-4 rounded-xl">
-                <h4 className="font-bold text-rose-900 text-xs">🔴 Ticari / Teknik Zayıflıklar</h4>
+                <h4 className="font-bold text-rose-900 text-xs">{t.evaluatePanel.weaknesses}</h4>
                 <ul className="list-disc pl-4 text-[11px] text-rose-800 space-y-1 mt-1.5">
                   {startupData.weaknesses?.map((w: string, i: number) => <li key={i}>{w}</li>)}
                 </ul>
               </div>
             </div>
             <div className="border-t border-purple-50 pt-2 text-xs">
-              <h4 className="font-bold text-purple-950">🏁 Rekabet Stratejisi:</h4>
+              <h4 className="font-bold text-purple-950">{t.evaluatePanel.strategyTitle}</h4>
               <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">{startupData.competitors_advice}</p>
             </div>
             <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
-              <h4 className="font-bold text-purple-900 text-xs">📢 Nihai Değerlendirme:</h4>
+              <h4 className="font-bold text-purple-900 text-xs">{t.evaluatePanel.finalVerdict}</h4>
               <p className="text-[11px] text-purple-800 leading-relaxed mt-0.5 font-bold">{startupData.final_verdict}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- GELİŞTİRİCİ (DEV) MODU ÇIKTILARI --- */}
+      {/* GELİŞTİRİCİ (DEV) MODU ÇIKTILARI */}
       {devData && mode === "dev" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start animate-slide-up">
           <div className="space-y-4">
             <div className="bg-gradient-to-br from-purple-700 to-purple-900 text-white p-6 rounded-2xl text-center shadow-md">
-              <span className="text-[10px] uppercase text-purple-200 font-bold">Teknik Karmaşıklık</span>
+              <span className="text-[10px] uppercase text-purple-200 font-bold">{t.evaluatePanel.techComplexity}</span>
               <div className="text-3xl font-black mt-1">{devData.technical_complexity_score} / 10</div>
             </div>
             <div className="bg-gradient-to-br from-indigo-700 to-indigo-900 text-white p-6 rounded-2xl text-center shadow-md">
-              <span className="text-[10px] uppercase text-indigo-200 font-bold">CV / Mülakat Etkisi</span>
+              <span className="text-[10px] uppercase text-indigo-200 font-bold">{t.evaluatePanel.cvImpact}</span>
               <div className="text-3xl font-black mt-1">{devData.cv_impact_score} / 10</div>
             </div>
           </div>
 
           <div className="md:col-span-2 bg-white border border-purple-100 rounded-3xl p-6 shadow-md space-y-4">
             <div className="bg-purple-50/50 border border-purple-100 p-4 rounded-xl">
-              <h4 className="font-bold text-purple-950 text-xs mb-2">🛠️ Önerilen Teknoloji Yığını (Stack)</h4>
+              <h4 className="font-bold text-purple-950 text-xs mb-2">{t.evaluatePanel.techStack}</h4>
               <div className="flex flex-wrap gap-1.5">
                 {devData.recommended_stack?.map((tech: string, i: number) => (
                   <span key={i} className="px-2 py-0.5 bg-white text-purple-700 font-bold rounded border border-purple-100 text-[10px]">
@@ -387,13 +385,13 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-orange-50/60 border border-orange-100 p-4 rounded-xl">
-                <h4 className="font-bold text-orange-900 text-xs">⚠️ Mühendislik Zorlukları</h4>
+                <h4 className="font-bold text-orange-900 text-xs">{t.evaluatePanel.challenges}</h4>
                 <ul className="list-disc pl-4 text-[11px] text-orange-800 space-y-1 mt-1.5">
                   {devData.engineering_challenges?.map((c: string, i: number) => <li key={i}>{c}</li>)}
                 </ul>
               </div>
               <div className="bg-indigo-50/60 border border-indigo-100 p-4 rounded-xl">
-                <h4 className="font-bold text-indigo-900 text-xs">📚 Öğrenim Çıktıları (Kazanımlar)</h4>
+                <h4 className="font-bold text-indigo-900 text-xs">{t.evaluatePanel.outcomes}</h4>
                 <ul className="list-disc pl-4 text-[11px] text-indigo-800 space-y-1 mt-1.5">
                   {devData.learning_outcomes?.map((o: string, i: number) => <li key={i}>{o}</li>)}
                 </ul>
@@ -401,7 +399,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
             </div>
 
             <div className="bg-slate-900 p-4 rounded-xl text-slate-50">
-              <h4 className="font-bold text-indigo-400 text-xs">👨‍💻 Kıdemli Mühendis (Tech Lead) Tavsiyesi:</h4>
+              <h4 className="font-bold text-indigo-400 text-xs">{t.evaluatePanel.leadAdvice}</h4>
               <p className="text-[11px] text-slate-300 leading-relaxed mt-1">{devData.final_mentor_verdict}</p>
             </div>
           </div>
