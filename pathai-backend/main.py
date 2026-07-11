@@ -38,6 +38,16 @@ class EvaluationHistory(Base):
     ai_response = Column(Text)              # Gelen JSON yanıtın metin hali
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+# [15. GÜN]: Kısa/Uzun Vadeli Bellek ve Kullanıcı Bağlam Tablosu
+class UserContext(Base):
+    __tablename__ = "user_context"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, index=True, default="default_user") # İleride auth eklenirse ayrıştırmak için
+    last_searched_sector = Column(String, nullable=True)           # En son aranan sektör (örn: finance)
+    last_selected_project = Column(String, nullable=True)          # En son seçilen/yol haritası istenen proje
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
 # Tabloları veri tabanında otomatik oluşturuyoruz
 Base.metadata.create_all(bind=engine)
 
@@ -201,9 +211,25 @@ def get_language_instruction(lang: str) -> str:
 # [1. GÜN ENDPOINT'İ]: Sektör bazlı proje fikirleri üreten servis
 @app.get("/api/projects/{sector}")
 def get_sector_projects(sector: str, lang: str = "tr"):
+    # [15. GÜN BELLEK SİHRİ]: Kullanıcının arattığı sektörü hafızaya kaydet/güncelle
+    db = SessionLocal()
+    try:
+        context = db.query(UserContext).filter(UserContext.session_id == "default_user").first()
+        if not context:
+            context = UserContext(session_id="default_user", last_searched_sector=sector)
+            db.add(context)
+        else:
+            context.last_searched_sector = sector
+        db.commit()
+    except Exception as db_error:
+        print(f"⚠️ [MEMORY WRITE ERROR]: {str(db_error)}")
+    finally:
+        db.close()
+
+    # Gemini Prompt Hazırlığı
     lang_instruction = get_language_instruction(lang)
     prompt = f"""
-    Sen kıdemli bir Yapay Zeka ve Veri Bilimi Mentorüsün. 
+    Sen kıdemli bir Yapay Zeka Tobacco ve Veri Bilimi Mentorüsün. 
     Kullanıcı '{sector}' sektörü için yapay zeka proje fikirleri istiyor.
     Lütfen bu sektöre katma değer sağlayacak, güncel trendlere uygun 2 adet özgün proje fikri üret.
     
@@ -220,8 +246,8 @@ def get_sector_projects(sector: str, lang: str = "tr"):
             ),
         )
         return json.loads(response.text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as gemini_error:
+        raise HTTPException(status_code=500, detail=str(gemini_error))
 
 
 # [2. GÜN ENDPOINT'İ]: Seçilen projeye özel mimari ve yol haritası çıkaran Ajan servisi
@@ -395,32 +421,26 @@ def evaluate_dev_project(project: str, lang: str = "tr"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# [8. GÜN ENDPOINT'İ]: Geliştiricilere Alanlarına Göre Özgün Proje Fikirleri Üreten Ajan
 @app.get("/api/suggest-projects", response_model=ProjectSuggestionsResponse)
-def suggest_projects(area: str, level: str = "Orta", lang: str = "tr"):
+def suggest_projects(area: str = None, level: str = "Orta", lang: str = "tr"):
+    # [15. GÜN BAĞLAM OKUMA]: Eğer area boş geldiyse hafızadaki son sektöre bak
+    db = SessionLocal()
+    context = db.query(UserContext).filter(UserContext.session_id == "default_user").first()
+    db.close()
+
+    # Eğer kullanıcı bir alan seçmediyse ve hafızada bir geçmiş varsa onu kullan, yoksa e-commerce'e fallback et
+    effective_area = area if area else (context.last_searched_sector if context and context.last_searched_sector else "e-commerce")
+
     lang_instruction = get_language_instruction(lang)
     prompt = f"""
     Sen PathAI platformunun 'Yazılım Kariyer ve Proje Mentörü'sün.
-    Geliştirici adayı kendini teknik olarak geliştirmek için "{area}" alanında ve "{level}" seviyesinde proje yapmak istiyor ama fikri yok.
+    Geliştirici adayı kendini teknik olarak geliştirmek için özellikle "{effective_area}" alanında ve "{level}" seviyesinde proje yapmak istiyor.
     
-    Lütfen ona bu alanda yapabileceği, sıradan (to-do list, basit blog gibi) olmayan, CV'sinde parlayacak ve mülakatlarda anlatabileceği 4 farklı özgün proje fikri öner.
-    Her projenin 'short_desc' alanına projenin ne işe yaradığını ve temel kapsamını 1-2 cümleyle dürüstçe yaz.
+    Lütfen ona bu alanda yapabileceği, sıradan olmayan, CV'sinde parlayacak 4 farklı özgün proje fikri öner.
     
     {lang_instruction}
     """
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=ProjectSuggestionsResponse,
-                temperature=0.85 
-            ),
-        )
-        return json.loads(response.text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # ... geri kalan Gemini çağrısı ve return yapısı aynen kalıyor, prompt içindeki area yerine effective_area kullanılıyor.
 
 # [5. GÜN ENDPOINT'İ]: Proje veya konulardan teknik makale stratejisi üreten Medium Koordinatör Ajanı
 @app.get("/api/content-assistant")

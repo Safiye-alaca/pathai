@@ -91,7 +91,8 @@ export default function MentorPanel({
         <div className="space-y-6">
           <div className="flex justify-between items-center border-b pb-2 border-purple-100">
             <h2 className="text-xl font-black text-purple-950 flex items-center gap-2">
-              <span>🎓</span> {language === "tr" ? `Seçilen Alan: ${sectorData.sector.toUpperCase()}` : `Selected Sector: ${sectorData.sector.toUpperCase()}`}
+              {/* Çökmeyi önleyen sectorData?.sector koruması ve fallback eklendi */}
+              <span>🎓</span> {language === "tr" ? `Seçilen Alan: ${(sectorData?.sector || sector || "").toUpperCase()}` : `Selected Sector: ${(sectorData?.sector || sector || "").toUpperCase()}`}
             </h2>
             <div className="w-12 h-12 rounded-full border border-purple-200 bg-white overflow-hidden shadow-inner hidden sm:block">
               <img 
@@ -104,7 +105,7 @@ export default function MentorPanel({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {sectorData.projects.map((project, idx) => (
+            {sectorData.projects?.map((project, idx) => (
               <div 
                 key={idx}
                 className={`p-6 rounded-[28px] bg-white border transition-all flex flex-col justify-between shadow-xl ${
@@ -157,7 +158,7 @@ export default function MentorPanel({
               <span>⚙️</span> {language === "tr" ? "Yapısal Mimari Katmanları" : "Structural Architecture Layers"}
             </h3>
             <div className="space-y-4">
-              {roadmapData.architecture_stack.map((arch, i) => (
+              {roadmapData.architecture_stack?.map((arch, i) => (
                 <div key={i} className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300">{arch.layer}</span>
                   <h4 className="text-sm font-bold text-white">{arch.technology}</h4>
@@ -173,14 +174,14 @@ export default function MentorPanel({
               <span>📅</span> {t.mentorPanel.roadmapTitle}
             </h3>
             <div className="space-y-6 relative border-l-2 border-purple-100 pl-4 ml-2">
-              {roadmapData.learning_roadmap.map((day, i) => (
+              {roadmapData.learning_roadmap?.map((day, i) => (
                 <div key={i} className="relative space-y-1">
                   <div className="absolute -left-[25px] top-1 w-3 h-3 rounded-full bg-purple-600 ring-4 ring-purple-100" />
                   <h4 className="font-bold text-purple-950 text-sm">
                     {language === "tr" ? `${day.day_number}. Gün:` : `Day ${day.day_number}:`} <span className="text-purple-700">{day.topic}</span>
                   </h4>
                   <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
-                    {day.tasks.map((task, k) => (
+                    {day.tasks?.map((task, k) => (
                       <li key={k} className="text-[11px] bg-purple-50/50 p-2 rounded-lg text-slate-600 border border-purple-50 flex items-center gap-1.5">
                         <span className="text-purple-600 font-bold">✓</span> {task}
                       </li>

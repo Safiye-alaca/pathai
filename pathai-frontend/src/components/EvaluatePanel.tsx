@@ -121,7 +121,7 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
     setError(null);
     try {
       // url sonuna &lang=${language} parametresi eklendi
-      const res = await fetch(`http://127.0.0.1:8000/api/suggest-projects?area=${encodeURIComponent(selectedArea)}&lang=${language}`);
+      const res = await fetch(`http://127.0.0.1:8000/api/suggest-projects?area=${encodeURIComponent(selectedArea || "")}&lang=${language}`);
       if (!res.ok) throw new Error(language === "tr" ? "Öneri ajanı şu an yanıt vermiyor." : "Suggestion agent is not responding right now.");
       const data = await res.json();
       setSuggestions(data.suggestions || []);
