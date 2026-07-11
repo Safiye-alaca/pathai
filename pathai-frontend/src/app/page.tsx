@@ -36,6 +36,9 @@ function HomeContent() {
   const [mediumData, setMediumData] = useState(null);
   const [mediumLoading, setMediumLoading] = useState(false);
 
+  // 12. Gün: Dil sözlüğünü ve aktif dili context'ten güvenle çekiyoruz
+  const { t, language } = useLanguage();
+
   // API Fonksiyonları
   const fetchProjects = async () => {
     if (!sector) return;
@@ -44,7 +47,7 @@ function HomeContent() {
     setSelectedProject(null);
     setRoadmapData(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/projects/${sector}`);
+      const res = await fetch(`http://127.0.0.1:8000/api/projects/${sector}?lang=${language}`);
       setSectorData(await res.json());
     } catch (err) {
       console.error(err);
@@ -58,7 +61,7 @@ function HomeContent() {
     setRoadmapLoading(true);
     setRoadmapData(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/roadmap/${encodeURIComponent(title)}`);
+      const res = await fetch(`http://127.0.0.1:8000/api/roadmap/${encodeURIComponent(title)}?lang=${language}`);
       setRoadmapData(await res.json());
     } catch (err) {
       console.error(err);
@@ -70,7 +73,7 @@ function HomeContent() {
   const fetchRadar = async () => {
     setRadarLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/radar`);
+      const res = await fetch(`${API_BASE_URL}/radar?lang=${language}`);
       setRadarData(await res.json());
     } catch (err) {
       console.error(err);
@@ -84,7 +87,7 @@ function HomeContent() {
     setEvaluationLoading(true);
     setEvaluationData(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/evaluate?idea=${encodeURIComponent(idea)}`);
+      const res = await fetch(`${API_BASE_URL}/evaluate?idea=${encodeURIComponent(idea)}&lang=${language}`);
       setEvaluationData(await res.json());
     } catch (err) {
       console.error(err);
@@ -98,7 +101,7 @@ function HomeContent() {
     setMediumLoading(true);
     setMediumData(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/content-assistant?topic=${encodeURIComponent(mediumTopic)}`);
+      const res = await fetch(`http://127.0.0.1:8000/api/content-assistant?topic=${encodeURIComponent(mediumTopic)}&lang=${language}`);
       setMediumData(await res.json());
     } catch (err) {
       console.error(err);
@@ -106,9 +109,6 @@ function HomeContent() {
       setMediumLoading(false);
     }
   };
-
-  // 12. Gün: Dil sözlüğünü Provider altındaki alt bileşende güvenle çağırıyoruz
-  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-purple-100/40 text-slate-800 font-sans relative overflow-x-hidden">
@@ -120,7 +120,7 @@ function HomeContent() {
       {/* Üst Menü */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Sabit Karşılama Alanı (Hero Section) - 12. Gün Dinamik Dil Bağlantıları */}
+      {/* Sabit Karşılama Alanı (Hero Section) */}
       <section className="max-w-7xl mx-auto px-6 pt-12 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         <div className="lg:col-span-7 space-y-4 text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 text-purple-800 text-xs font-bold border border-purple-200 animate-pulse">

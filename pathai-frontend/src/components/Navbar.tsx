@@ -89,13 +89,13 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </button>
           </div>
 
-          {/* Giriş Yap / Kayıt Ol Butonları */}
+          {/* Üyelik Butonları - Dil Sözlüğüne Bağlandı */}
           <div className="flex gap-3">
             <button className="px-5 py-2 rounded-xl text-sm font-bold text-purple-700 hover:bg-purple-50 transition-colors">
-              Giriş Yap
+              {t.navbar.login}
             </button>
             <button className="px-5 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white transition-all shadow-md shadow-purple-200">
-              Kayıt Ol
+              {t.navbar.register}
             </button>
           </div>
 

@@ -69,7 +69,7 @@ export default function MediumPanel({
             <div className="bg-white border border-purple-100 p-4 rounded-2xl shadow-sm space-y-2">
               <h4 className="font-bold text-purple-950 text-xs border-b pb-1">{t.mediumPanel.titles}</h4>
               <div className="space-y-1.5">
-                {mediumData.suggested_titles.map((title, i) => (
+                {mediumData?.suggested_titles?.map((title, i) => (
                   <div key={i} className="text-[11px] p-2 rounded-lg bg-purple-50 text-purple-950 font-bold leading-normal">
                     📌 {title}
                   </div>
@@ -80,7 +80,7 @@ export default function MediumPanel({
             <div className="bg-white border border-purple-100 p-4 rounded-2xl shadow-sm space-y-1.5">
               <h4 className="font-bold text-purple-950 text-xs border-b pb-1">{t.mediumPanel.tags}</h4>
               <div className="flex flex-wrap gap-1 pt-1">
-                {mediumData.tags.map((tag, i) => (
+                {mediumData?.tags?.map((tag, i) => (
                   <span key={i} className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full border border-slate-200">
                     #{tag}
                   </span>

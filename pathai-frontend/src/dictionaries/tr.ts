@@ -3,7 +3,9 @@ export const tr = {
     projects: "💡 Proje Mentorü",
     radar: "📡 Canlı Radar",
     evaluate: "👥 Girişim/Gelişim",
-    medium: "✍️ Medium Asistanı"
+    medium: "✍️ Medium Asistanı",
+    login: "Giriş Yap",
+    register: "Kayıt Ol"
   },
   hero: {
     badge: "✨ Akıllı AI Ajanları Aktif Hale Getirildi",
@@ -25,7 +27,19 @@ export const tr = {
     title: "🛰️ Canlı Yapay Zeka Radarı",
     desc: "Teknoloji dünyasındaki en son yapay zeka trendlerini ve ajan gelişmelerini anlık takip et.",
     buttonRefresh: "Radarı Güncelle",
-    loading: "Sinyaller taranıyor..."
+    loading: "Sinyaller taranıyor...",
+    githubTitle: "🐙 Trend Repolar (GitHub)",
+    hfTitle: "🤗 En Popüler Modeller (Hugging Face)",
+    tcTitle: "🚀 Lansman & Yatırımlar (TechCrunch)",
+    hnTitle: "🔥 Derin Teknik Tartışmalar (Hacker News)",
+    fallbackDesc: "Yapay zeka destekli topluluk reposu.",
+    tcDesc: "Küresel pazardan anlık yapay zeka finansman, lansman ve ekosistem gelişmesi.",
+    hnDesc: "Geliştirici topluluklarının en çok konuştuğu derin teknik AI başlıkları.",
+    metricMinutes: "dk önce",
+    metricHours: "saat önce",
+    metricPoints: "Puan",
+    metricStars: "Yıldız",
+    metricDownloads: "İndirilme"
   },
   mediumPanel: {
     title: "Medium Topluluk Editör Ajanı",

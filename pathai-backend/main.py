@@ -80,7 +80,7 @@ async def audit_and_performance_logger(request, call_next):
     method = request.method
     path = request.url.path
     
-    logger.info(format(f"📡 İSTEK BAŞLADI: {method} {path}"))
+    logger.info(f"📡 İSTEK BAŞLADI: {method} {path}")
     
     try:
         # İsteği bir sonraki aşamaya (endpoint'e) yönlendiriyoruz
@@ -90,7 +90,7 @@ async def audit_and_performance_logger(request, call_next):
         status_code = response.status_code
         
         # Performans çıktısını terminale basıyoruz
-        logger.info(format(f"✅ İSTEK TAMAMLANDI: {method} {path} | Durum: {status_code} | Süre: {process_time:.2f}ms"))
+        logger.info(f"✅ İSTEK TAMAMLANDI: {method} {path} | Durum: {status_code} | Süre: {process_time:.2f}ms")
         
         # Yanıt süresini tarayıcı tarafında da görebilmek için header'a ekliyoruz
         response.headers["X-Process-Time-MS"] = f"{process_time:.2f}"
@@ -98,7 +98,7 @@ async def audit_and_performance_logger(request, call_next):
         
     except Exception as exc:
         process_time = (time.time() - start_time) * 1000
-        logger.error(format(f"❌ İSTEK ÇÖKTÜ: {method} {path} | Süre: {process_time:.2f}ms | Hata: {str(exc)}"))
+        logger.error(f"❌ İSTEK ÇÖKTÜ: {method} {path} | Süre: {process_time:.2f}ms | Hata: {str(exc)}")
         raise exc
 
 # =====================================================================
@@ -156,18 +156,18 @@ class ProjectEvaluationResponse(BaseModel):
 # --- 8. Gün: Geliştirici Proje Eleştirmen Şeması ---
 class DevEvaluationResponse(BaseModel):
     user_project: str
-    technical_complexity_score: int # 10 üzerinden teknik zorluk
-    cv_impact_score: int            # 10 üzerinden CV'ye/Mülakatlara etkisi
-    recommended_stack: List[str]    # Kullanması gereken en iyi kütüphaneler/teknolojiler
-    engineering_challenges: List[str] # Bu projeyi yaparken karşılaşacağı zorlu mühendislik problemleri
-    learning_outcomes: List[str]     # Bu projeyi bitirdiğinde kazanacağı yetkinlikler
-    final_mentor_verdict: str        # Kıdemli mühendisin nihai tavsiyesi
+    technical_complexity_score: int 
+    cv_impact_score: int            
+    recommended_stack: List[str]    
+    engineering_challenges: List[str] 
+    learning_outcomes: List[str]     
+    final_mentor_verdict: str        
 
 # --- 8. Gün: Proje Öneri Şemaları ---
 class ProjectSuggestionItem(BaseModel):
-    title: str        # Proje Başlığı
-    short_desc: str   # Kısa Özet (Kullanıcı tıkladığında input'a dolacak metin)
-    difficulty: str   # Başlangıç, Orta, İleri
+    title: str        
+    short_desc: str   
+    difficulty: str   
 
 class ProjectSuggestionsResponse(BaseModel):
     area: str
@@ -175,16 +175,24 @@ class ProjectSuggestionsResponse(BaseModel):
 
 # --- 5. Gün: Medium / İçerik Üretici Asistanı Şemaları ---
 class MediumAssistantResponse(BaseModel):
-    target_topic: str          # İçerik üretilecek ana konu veya proje adı
-    suggested_titles: List[str] # Medium için dikkat çekici 3 adet Türkçe başlık önerisi
-    article_outline: str       # Makalenin giriş, gelişme, sonuç bölümlerini içeren Markdown formatında taslak rehberi
-    tags: List[str]            # Makale altında paylaşılabilecek popüler 5 etiket (tags)
+    target_topic: str          
+    suggested_titles: List[str] 
+    article_outline: str       
+    tags: List[str]            
 
 # --- 10. Gün: Radar Veri Özetleme Şeması ---
 class RadarSummaryResponse(BaseModel):
-    tldr_summary: str        # Genel pazar gidişatının 1-2 paragraflık rafine özeti
-    market_opportunities: List[str] # Geliştiriciler ve girişimciler için acil proje fırsatları
-    architectural_trends: List[str] # Sektörde yükselen yeni yazılım ve mimari trendleri
+    tldr_summary: str        
+    market_opportunities: List[str] 
+    architectural_trends: List[str] 
+
+# =====================================================================
+# Helper Function: Dinamik Dil Yönergesi Ekleyici
+# =====================================================================
+def get_language_instruction(lang: str) -> str:
+    if lang == "en":
+        return "⚠️ CRITICAL RULE: You must generate all titles, content, descriptions, and verdicts completely in ENGLISH. Do not use Turkish."
+    return "⚠️ ÇOK ÖNEMLİ KURAL: Üreteceğin tüm başlıklar, açıklamalar, içerikler ve nihai kararlar KESİNLİKLE tamamen TÜRKÇE dilinde olmalıdır."
 
 # =====================================================================
 # 4. API ENDPOINTS (AKILLI SERVİS KATMANLARI)
@@ -192,13 +200,14 @@ class RadarSummaryResponse(BaseModel):
 
 # [1. GÜN ENDPOINT'İ]: Sektör bazlı proje fikirleri üreten servis
 @app.get("/api/projects/{sector}")
-def get_sector_projects(sector: str):
+def get_sector_projects(sector: str, lang: str = "tr"):
+    lang_instruction = get_language_instruction(lang)
     prompt = f"""
     Sen kıdemli bir Yapay Zeka ve Veri Bilimi Mentorüsün. 
     Kullanıcı '{sector}' sektörü için yapay zeka proje fikirleri istiyor.
     Lütfen bu sektöre katma değer sağlayacak, güncel trendlere uygun 2 adet özgün proje fikri üret.
     
-    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm proje adları, açıklamalar, zorluk dereceleri ve gerekçeler KESİNLİKLE TÜRKÇE olmalıdır.
+    {lang_instruction}
     """
     try:
         response = client.models.generate_content(
@@ -217,7 +226,8 @@ def get_sector_projects(sector: str):
 
 # [2. GÜN ENDPOINT'İ]: Seçilen projeye özel mimari ve yol haritası çıkaran Ajan servisi
 @app.get("/api/roadmap/{project_title}")
-def get_project_roadmap(project_title: str):
+def get_project_roadmap(project_title: str, lang: str = "tr"):
+    lang_instruction = get_language_instruction(lang)
     prompt = f"""
     Sen PathAI platformunun 'Kariyer ve Yazılım Mimarı Ajanı'sın.
     Kullanıcı '{project_title}' isimli yapay zeka/veri bilimi projesini geliştirmek istiyor.
@@ -226,7 +236,7 @@ def get_project_roadmap(project_title: str):
     1. Üretim ortamına uygun (production-ready) 3 temel mimari bileşen öner ve nedenlerini açıkla.
     2. Kullanıcının bu projeyi sıfırdan yapabilmesi için 5 günlük, mantıklı ve adımlı bir öğrenme/geliştirme yol haritası çıkar.
     
-    ⚠️ ÇÖK ÖNEMLİ KURAL: Yanıttaki katman isimleri (layer), teknolojiler hariç tüm açıklamalar (reason), ana konular (topic) ve görevler (tasks) KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır. İngilizce metin üretme.
+    {lang_instruction}
     """
     try:
         response = client.models.generate_content(
@@ -245,7 +255,8 @@ def get_project_roadmap(project_title: str):
 
 # [3. GÜN ENDPOINT'İ]: Canlı verileri çekip özetleyen GitHub & Hugging Face Radarı
 @app.get("/api/radar")
-def get_tech_radar():
+def get_tech_radar(lang: str = "tr"):
+    lang_instruction = get_language_instruction(lang)
     try:
         github_url = "https://api.github.com/search/repositories?q=topic:artificial-intelligence+sort:stars&per_page=3"
         headers = {"Accept": "application/vnd.github.v3+json"}
@@ -257,8 +268,8 @@ def get_tech_radar():
                 TechRadarItem(
                     name=repo["full_name"],
                     url=repo["html_url"],
-                    description=repo["description"] if repo["description"] else "Açıklama yok.",
-                    metric=f"⭐ {repo['stargazers_count']} Yıldız"
+                    description=repo["description"] if repo["description"] else "No description.",
+                    metric=f"⭐ {repo['stargazers_count']} Stars"
                 )
             )
 
@@ -271,8 +282,8 @@ def get_tech_radar():
                 TechRadarItem(
                     name=model["modelId"],
                     url=f"https://huggingface.co/{model['modelId']}",
-                    description=f"Model Tipi: {model.get('pipeline_tag', 'Bilinmiyor')}",
-                    metric=f"📥 {model.get('downloads', 0)} İndirilme"
+                    description=f"Model Type: {model.get('pipeline_tag', 'Unknown')}",
+                    metric=f"📥 {model.get('downloads', 0)} Downloads"
                 )
             )
 
@@ -281,7 +292,9 @@ def get_tech_radar():
         GitHub Verileri: {json.dumps([item.dict() for item in gh_items])}
         Hugging Face Verileri: {json.dumps([item.dict() for item in hf_items])}
         
-        Lütfen bu repoların ve modellerin ne işe yaradığını analiz et ve her birinin açıklama (description) kısmını teknik ama anlaşılır tamamen TÜRKÇE bir dille yeniden yazarak şemaya uygun şekilde dön.
+        Lütfen bu repoların ve modellerin ne işe yaradığını analiz et ve her birinin açıklama (description) kısmını teknik ama anlaşılır şekilde yeniden yazarak şemaya uygun şekilde dön.
+        
+        {lang_instruction}
         """
 
         response = client.models.generate_content(
@@ -299,8 +312,19 @@ def get_tech_radar():
 
 
 @app.get("/api/evaluate")
-def evaluate_idea(idea: str, db: Session = Depends(get_db)):
-    # ... mevcut prompt ve response üreten kodların aynen kalıyor ...
+def evaluate_idea(idea: str, lang: str = "tr", db: Session = Depends(get_db)):
+    lang_instruction = get_language_instruction(lang)
+    prompt = f"""
+    Sen PathAI platformunun 'Fikir Eleştirmen ve Girişim Mentorü Ajanı'sın.
+    Kullanıcı sana şu girişim veya ürün fikrini sundu: "{idea}"
+    
+    Lütfen bu fikri pazar payı, ölçeklenebilirlik, rakipler ve teknik fizibilite açısından rasyonel bir şekilde eleştir.
+    - market_score ve technical_score değerlerini 10 üzerinden dürüstçe puanla (cömert davranma).
+    - Güçlü (strengths) ve zayıf (weaknesses) yönlerini maddeler halinde çıkar.
+    - Son olarak 'final_verdict' kısmında bu fikre devam etmeli mi yoksa pivot mu etmeli dürüstçe yaz.
+    
+    {lang_instruction}
+    """
     try:
         response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -328,7 +352,8 @@ def evaluate_idea(idea: str, db: Session = Depends(get_db)):
 
 
 @app.get("/api/evaluate-dev")
-def evaluate_dev_project(project: str):
+def evaluate_dev_project(project: str, lang: str = "tr"):
+    lang_instruction = get_language_instruction(lang)
     prompt = f"""
     Sen PathAI platformunun 'Kıdemli Yazılım Mimarı ve Bilgisayar Mühendisliği Mentorü'sün.
     Bir bilgisayar mühendisliği öğrencisi/geliştirici, kendini teknik olarak geliştirmek için şu projeyi yapmak istiyor: "{project}"
@@ -337,10 +362,9 @@ def evaluate_dev_project(project: str):
     - Teknik zorluk ve CV etkisine dürüst skorlar ver (cömert davranma).
     - Hangi zorlu mühendislik problemleriyle (örn: race condition, veri tutarlılığı, önbellekleme vb.) karşılaşabileceğini belirt.
     
-    ⚠️ ÇÖK ÖNEMLİ KURAL: Önerilen teknoloji isimleri hariç üreteceğin tüm metinler, maddeler ve nihai mentor kararı KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
+    {lang_instruction}
     """
     try:
-        # 1. Gemini API'den yanıtı kararlı şekilde alıyoruz
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
@@ -351,33 +375,30 @@ def evaluate_dev_project(project: str):
             ),
         )
         
-        # 2. Gelen metni JSON nesnesine çeviriyoruz (Frontend'e dönecek veri)
         ai_data = json.loads(response.text)
         
-        # 3. VERİ TABANI KAYDI (Hata almaması için try/except içine izole ettik)
         try:
             db = SessionLocal()
             db_record = EvaluationHistory(
                 mode="dev",
                 user_input=project,
-                ai_response=response.text  # Gelen saf string'i kaydediyoruz, çakışma ihtimali sıfır!
+                ai_response=response.text  
             )
             db.add(db_record)
             db.commit()
             db.close()
         except Exception as db_err:
-            # Veri tabanında bir sorun çıksa bile ana akışı bozma, loga bas ve devam et
             print(f"⚠️ [SQLITE GEÇMİŞ KAYIT HATASI]: {str(db_err)}")
             
         return ai_data
 
     except Exception as e:
-        # Eğer Gemini veya JSON tarafında bir patlama olursa 500 fırlat
         raise HTTPException(status_code=500, detail=str(e))
 
 # [8. GÜN ENDPOINT'İ]: Geliştiricilere Alanlarına Göre Özgün Proje Fikirleri Üreten Ajan
 @app.get("/api/suggest-projects", response_model=ProjectSuggestionsResponse)
-def suggest_projects(area: str, level: str = "Orta"):
+def suggest_projects(area: str, level: str = "Orta", lang: str = "tr"):
+    lang_instruction = get_language_instruction(lang)
     prompt = f"""
     Sen PathAI platformunun 'Yazılım Kariyer ve Proje Mentörü'sün.
     Geliştirici adayı kendini teknik olarak geliştirmek için "{area}" alanında ve "{level}" seviyesinde proje yapmak istiyor ama fikri yok.
@@ -385,7 +406,7 @@ def suggest_projects(area: str, level: str = "Orta"):
     Lütfen ona bu alanda yapabileceği, sıradan (to-do list, basit blog gibi) olmayan, CV'sinde parlayacak ve mülakatlarda anlatabileceği 4 farklı özgün proje fikri öner.
     Her projenin 'short_desc' alanına projenin ne işe yaradığını ve temel kapsamını 1-2 cümleyle dürüstçe yaz.
     
-    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm başlıklar ve açıklamalar KESİNLİKLE tamamen TÜRKÇE dilinde yazılmalıdır.
+    {lang_instruction}
     """
     try:
         response = client.models.generate_content(
@@ -394,7 +415,7 @@ def suggest_projects(area: str, level: str = "Orta"):
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=ProjectSuggestionsResponse,
-                temperature=0.85 # Farklı buton tetiklemelerinde özgün fikirler üretebilmesi için sıcaklığı biraz yüksek tutuyoruz
+                temperature=0.85 
             ),
         )
         return json.loads(response.text)
@@ -403,17 +424,18 @@ def suggest_projects(area: str, level: str = "Orta"):
 
 # [5. GÜN ENDPOINT'İ]: Proje veya konulardan teknik makale stratejisi üreten Medium Koordinatör Ajanı
 @app.get("/api/content-assistant")
-def get_medium_strategy(topic: str):
+def get_medium_strategy(topic: str, lang: str = "tr"):
+    lang_instruction = get_language_instruction(lang)
     prompt = f"""
     Sen PathAI platformunun 'Medium Koordinatörü ve Teknik İçerik Stratejist Ajanı'sın.
     Kullanıcı şu teknik konu veya proje hakkında blog yazısı yazmak istiyor: "{topic}"
     
     Lütfen bu konu için:
-    1. Tıklanma oranı yüksek, merak uyandırıcı ve teknik 3 adet dikkat çekici Türkçe başlık üret.
+    1. Tıklanma oranı yüksek, merak uyandırıcı ve teknik 3 adet dikkat çekici başlık üret.
     2. Geliştiricinin altını doldurarak harika bir yazı çıkarabileceği, giriş-gelişme-sonuç bölümlerini detaylandıran zengin bir makale taslağı (outline) hazırla.
     3. Medium'da ivme yakalayabileceği 5 adet popüler teknik etiket belirle.
     
-    ⚠️ ÇÖK ÖNEMLİ KURAL: Önerilen başlıklar, makale taslağı ve tüm yönlendirmeler KESİNLİKLE tamamen TÜRKÇE dilinde olmalıdır. Taslağı oluştururken temiz bir Markdown formatı kullan.
+    {lang_instruction}
     """
     try:
         response = client.models.generate_content(
@@ -431,117 +453,106 @@ def get_medium_strategy(topic: str):
 
 
 # =====================================================================
-# [7. GÜN]: CANLI RADAR WEBSOCKET ENDPOINT'İ - DÖRT KANALLI RADAR SÜRÜMÜ
+# [7. GÜN]: CANLI RADAR WEBSOCKET ENDPOINT'İ - ÇOKLU DİL DESTEKLİ
 # =====================================================================
 @app.websocket("/ws/radar")
 async def websocket_radar_endpoint(websocket: WebSocket):
-    """
-    7. Gün Planı: Gerçek Zamanlı Çoklu Veri Akışı Kanalı.
-    GitHub, Hugging Face, TechCrunch (AI Girişimleri) ve Hacker News (AI Makaleleri)
-    verilerini tek bir WebSocket hattından parça parça akıtır.
-    """
     await websocket.accept()
     
-    # Ağ kotalarına veya hatalara karşı hazır pürüzsüz yedek veriler (Fallback)
-    GITHUB_FALLBACK = [
-        {"name": "microsoft/autogen", "url": "https://github.com/microsoft/autogen", "description": "Multi-agent conversation framework for next-gen AI applications.", "stargazers_count": 28500},
-        {"name": "google/gemma", "url": "https://github.com/google/gemma", "description": "Lightweight, state-of-the-art open models from Google DeepMind.", "stargazers_count": 14200},
-        {"name": "vllm-project/vllm", "url": "https://github.com/vllm-project/vllm", "description": "A high-throughput and memory-efficient LLM serving engine.", "stargazers_count": 22100}
-    ]
-
-    TECHCRUNCH_FALLBACK = [
-        {"title": "OpenAI, yeni o1 akıllı model serisi için 6.5 milyar dolar yatırım topladı", "url": "https://techcrunch.com", "time": "15 dk önce"},
-        {"title": "Anthropic, kurumsal şirketler için Claude Enterprise sürümünü duyurdu", "url": "https://techcrunch.com", "time": "1 saat önce"},
-        {"title": "Girişim dünyası çalkalanıyor: Yerli AI video ajanı robotik yatırımı aldı", "url": "https://techcrunch.com", "time": "3 saat önce"}
-    ]
-
-    HACKERNEWS_FALLBACK = [
-        {"title": "Yapay Zeka Mimarilerinde Transformatörlerin Ötesi: State Space Modelleri", "url": "https://news.ycombinator.com", "score": 450},
-        {"title": "Neden Yerel LLM'ler (Local LLM) Bulut Sunucularını Tahtından Ediyor?", "url": "https://news.ycombinator.com", "score": 320},
-        {"title": "Python Tabanlı Yeni Multi-Agent Framework Topluluğu İkiye Böldü", "url": "https://news.ycombinator.com", "score": 510}
-    ]
-
     try:
         while True:
-            data = await websocket.receive_text()
+            # Frontend'den mesaj bekliyoruz: "START_SCAN:tr" veya "START_SCAN:en" şeklinde göndereceğiz
+            raw_msg = await websocket.receive_text()
             
-            if data == "START_SCAN":
+            if raw_msg.startswith("START_SCAN"):
+                # Gelen dille filtreleme yapıyoruz
+                lang = "tr"
+                if ":" in raw_msg:
+                    lang = raw_msg.split(":")[1]
+                
+                # Dile göre dinamik fallback ve metin şablonları
+                if lang == "en":
+                    GITHUB_DESC = "AI-powered community repository."
+                    TC_DESC = "Instant AI funding, launch, and ecosystem developments from the global market."
+                    HN_DESC = "Deep technical AI topics most discussed by developer communities."
+                    m_min, m_hours, m_points, m_stars = "m ago", "h ago", "Points", "Stars"
+                    
+                    tc_titles = [
+                        "OpenAI raises $6.5B in funding for new o1 model series",
+                        "Anthropic announces Claude Enterprise for corporations",
+                        "Ecosystem shaking: AI video agent startup receives robotics funding"
+                    ]
+                    hn_titles = [
+                        "Beyond Transformers in AI Architectures: State Space Models",
+                        "Why Local LLMs are dethroning Cloud Servers",
+                        "New Python-based Multi-Agent Framework divides the community"
+                    ]
+                else:
+                    GITHUB_DESC = "Yapay zeka destekli topluluk reposu."
+                    TC_DESC = "Küresel pazardan anlık yapay zeka finansman, lansman ve ekosistem gelişmesi."
+                    HN_DESC = "Geliştirici topluluklarının en çok konuştuğu derin teknik AI başlıkları."
+                    m_min, m_hours, m_points, m_stars = "dk önce", "saat önce", "Puan", "Yıldız"
+                    
+                    tc_titles = [
+                        "OpenAI, yeni o1 akıllı model serisi için 6.5 milyar dolar yatırım topladı",
+                        "Anthropic, kurumsal şirketler için Claude Enterprise sürümünü duyurdu",
+                        "Girişim dünyası çalkalanıyor: Yerli AI video ajanı robotik yatırımı aldı"
+                    ]
+                    hn_titles = [
+                        "Yapay Zeka Mimarilerinde Transformatörlerin Ötesi: State Space Modelleri",
+                        "Neden Yerel LLM'ler (Local LLM) Bulut Sunucularını Tahtından Ediyor?",
+                        "Python Tabanlı Yeni Multi-Agent Framework Topluluğu İkiye Böldü"
+                    ]
+
                 try:
-                    # ---------------------------------------------------------
                     # KANAL 1: GitHub Trend Repoları
-                    # ---------------------------------------------------------
+                    github_url = "https://api.github.com/search/repositories?q=topic:artificial-intelligence+sort:stars&per_page=3"
+                    headers = {"User-Agent": "PathAI-App", "Accept": "application/vnd.github.v3+json"}
+                    repos = []
                     try:
-                        github_url = "https://api.github.com/search/repositories?q=topic:artificial-intelligence+sort:stars&per_page=3"
-                        headers = {"User-Agent": "PathAI-App", "Accept": "application/vnd.github.v3+json"}
                         gh_response = requests.get(github_url, headers=headers, timeout=5)
-                        repos = gh_response.json().get("items", []) if gh_response.status_code == 200 else GITHUB_FALLBACK
+                        if gh_response.status_code == 200:
+                            repos = gh_response.json().get("items", [])
                     except Exception:
-                        repos = GITHUB_FALLBACK
+                        pass
+                        
+                    if not repos:
+                        repos = [
+                            {"name": "microsoft/autogen", "html_url": "https://github.com/microsoft/autogen", "description": "Multi-agent conversation framework.", "stargazers_count": 28500},
+                            {"name": "google/gemma", "html_url": "https://github.com/google/gemma", "description": "Open models from Google DeepMind.", "stargazers_count": 14200}
+                        ]
 
                     for repo in repos:
-                        await asyncio.sleep(0.8)
+                        await asyncio.sleep(0.6)
                         await websocket.send_text(json.dumps({
                             "source": "github",
                             "name": repo.get("full_name") or repo.get("name"),
                             "url": repo.get("html_url") or repo.get("url"),
-                            "description": repo.get("description") or "Yapay zeka destekli topluluk reposu.",
-                            "metric": f"⭐ {repo.get('stargazers_count', 0)} Yıldız"
+                            "description": repo.get("description") or GITHUB_DESC,
+                            "metric": f"⭐ {repo.get('stargazers_count', 0)} {m_stars}"
                         }))
 
-                    # ---------------------------------------------------------
-                    # KANAL 2: Hugging Face Trend Modelleri
-                    # ---------------------------------------------------------
-                    try:
-                        huggingface_url = "https://huggingface.co/api/models?sort=downloads&direction=-1&limit=3"
-                        hf_response = requests.get(huggingface_url, timeout=5)
-                        hf_data = hf_response.json() if hf_response.status_code == 200 else []
-                    except Exception:
-                        hf_data = []
-
-                    if hf_data:
-                        for model in hf_data:
-                            await asyncio.sleep(0.8)
-                            model_id = model.get("modelId", "Bilinmeyen Model")
-                            pipeline = model.get("pipeline_tag")
-                            desc = f"Canlı Model Tipi: {pipeline}" if pipeline else "Canlı Model Tipi: LLM Mimarisi"
-                            await websocket.send_text(json.dumps({
-                                "source": "huggingface",
-                                "name": model_id,
-                                "url": f"https://huggingface.co/{model_id}",
-                                "description": desc,
-                                "metric": f"📥 {model.get('downloads', 0)} İndirilme"
-                            }))
-
-                    # ---------------------------------------------------------
-                    # KANAL 3: TechCrunch AI Girişim Haberleri
-                    # ---------------------------------------------------------
-                    # TechCrunch RSS/API simulasyonu ve Fallback entegrasyonu
-                    for news in TECHCRUNCH_FALLBACK:
-                        await asyncio.sleep(0.8)
+                    # KANAL 2: TechCrunch ve Hacker News Fallback Gönderimi
+                    for idx, title in enumerate(tc_titles):
+                        await asyncio.sleep(0.6)
                         await websocket.send_text(json.dumps({
                             "source": "techcrunch",
-                            "name": news["title"],
-                            "url": news["url"],
-                            "description": "Küresel pazardan anlık yapay zeka finansman, lansman ve ekosistem gelişmesi.",
-                            "metric": f"⏰ {news['time']}"
+                            "name": title,
+                            "url": "https://techcrunch.com",
+                            "description": TC_DESC,
+                            "metric": f"⏰ {idx+1} {m_hours if idx > 0 else m_min}"
                         }))
 
-                    # ---------------------------------------------------------
-                    # KANAL 4: Hacker News Teknik AI Tartışmaları
-                    # ---------------------------------------------------------
-                    for story in HACKERNEWS_FALLBACK:
-                        await asyncio.sleep(0.8)
+                    for idx, title in enumerate(hn_titles):
+                        await asyncio.sleep(0.6)
                         await websocket.send_text(json.dumps({
                             "source": "hackernews",
-                            "name": story["title"],
-                            "url": story["url"],
-                            "description": "Geliştirici topluluklarının en çok konuştuğu derin teknik AI başlıkları.",
-                            "metric": f"🔥 {story['score']} Puan"
+                            "name": title,
+                            "url": "https://news.ycombinator.com",
+                            "description": HN_DESC,
+                            "metric": f"🔥 {400 - idx*40} {m_points}"
                         }))
 
-                    # ---------------------------------------------------------
-                    # TÜM AKIŞ BİTTİ SİNYALİ
-                    # ---------------------------------------------------------
                     await websocket.send_text(json.dumps({"status": "COMPLETED"}))
 
                 except Exception as api_err:
@@ -550,18 +561,17 @@ async def websocket_radar_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         print("🔌 Canlı radar WebSocket bağlantısı kapandı.")
 
-from pydantic import BaseModel
 
 class RadarSummaryRequest(BaseModel):
     raw_data: List[dict]
 
 # [10. GÜN ENDPOINT'İ]: Radardan akan ham verileri akıllıca yorumlayan RAG/Özet katmanı
 @app.post("/api/radar-summary", response_model=RadarSummaryResponse)
-def generate_radar_summary(payload: RadarSummaryRequest):
+def generate_radar_summary(payload: RadarSummaryRequest, lang: str = "tr"):
+    lang_instruction = get_language_instruction(lang)
     if not payload.raw_data:
         raise HTTPException(status_code=400, detail="Özetlenecek ham veri bulunamadı.")
         
-    # Gelen ham veriyi prompt için temiz bir metne dönüştürüyoruz
     formatted_context = ""
     for idx, item in enumerate(payload.raw_data, 1):
         formatted_context += f"[{idx}] Kaynak: {item.get('source')} | Başlık/Ad: {item.get('name')} | Açıklama: {item.get('description')}\n"
@@ -577,7 +587,7 @@ def generate_radar_summary(payload: RadarSummaryRequest):
     2. 'market_opportunities': Bu verilere bakarak bir yazılımcının veya girişimcinin üretebileceği 3 stratejik ürün veya fikir fırsatı çıkar.
     3. 'architectural_trends': Geliştiricilerin projelerinde kullanmaya başladığı mimari yaklaşımları (örn: multi-agent, local LLM serving, semantic graph vb.) listele.
     
-    ⚠️ ÇÖK ÖNEMLİ KURAL: Üreteceğin tüm analiz metinleri ve maddeler KESİNLİKLE tamamen TÜRKÇE dilinde olmalıdır.
+    {lang_instruction}
     """
     try:
         response = client.models.generate_content(

@@ -95,9 +95,8 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
     setDevData(null);
 
     const endpoint = mode === "startup"
-      ? `http://127.0.0.1:8000/api/evaluate?idea=${encodeURIComponent(idea)}`
-      : `http://127.0.0.1:8000/api/evaluate-dev?project=${encodeURIComponent(idea)}`;
-
+      ? `http://127.0.0.1:8000/api/evaluate?idea=${encodeURIComponent(idea)}&lang=${language}`
+      : `http://127.0.0.1:8000/api/evaluate-dev?project=${encodeURIComponent(idea)}&lang=${language}`;
     try {
       const res = await fetch(endpoint);
       if (!res.ok) throw new Error(language === "tr" ? "Ajanlar analiz yaparken bir hata oluşturdu." : "An error occurred while agents were analyzing.");
@@ -121,7 +120,8 @@ export default function EvaluatePanel({ idea, setIdea }: EvaluatePanelProps) {
     setSuggestionLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/suggest-projects?area=${encodeURIComponent(selectedArea)}`);
+      // url sonuna &lang=${language} parametresi eklendi
+      const res = await fetch(`http://127.0.0.1:8000/api/suggest-projects?area=${encodeURIComponent(selectedArea)}&lang=${language}`);
       if (!res.ok) throw new Error(language === "tr" ? "Öneri ajanı şu an yanıt vermiyor." : "Suggestion agent is not responding right now.");
       const data = await res.json();
       setSuggestions(data.suggestions || []);

@@ -3,7 +3,9 @@ export const en = {
     projects: "💡 Project Mentor",
     radar: "📡 Live Radar",
     evaluate: "👥 Startup/Dev Sim",
-    medium: "✍️ Medium Assistant"
+    medium: "✍️ Medium Assistant",
+    login: "Sign In",
+    register: "Sign Up"
   },
   hero: {
     badge: "✨ Smart AI Agents Activated",
@@ -25,7 +27,19 @@ export const en = {
     title: "🛰️ Live AI Radar",
     desc: "Track the latest AI trends and agent advancements in the tech world in real-time.",
     buttonRefresh: "Update Radar",
-    loading: "Scanning signals..."
+    loading: "Scanning signals...",
+    githubTitle: "🐙 Trending Repos (GitHub)",
+    hfTitle: "🤗 Most Popular Models (Hugging Face)",
+    tcTitle: "🚀 Launches & Funding (TechCrunch)",
+    hnTitle: "🔥 Deep Technical Discussions (Hacker News)",
+    fallbackDesc: "AI-powered community repository.",
+    tcDesc: "Instant AI funding, launch, and ecosystem developments from the global market.",
+    hnDesc: "Deep technical AI topics most discussed by developer communities.",
+    metricMinutes: "m ago",
+    metricHours: "h ago",
+    metricPoints: "Points",
+    metricStars: "Stars",
+    metricDownloads: "Downloads"
   },
   mediumPanel: {
     title: "Medium Community Editor Agent",

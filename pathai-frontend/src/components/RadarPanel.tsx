@@ -75,8 +75,7 @@ export default function RadarPanel({}: RadarPanelProps) {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      setStatusText(language === "tr" ? "🔍 Bağlantı kuruldu. 4 farklı küresel kanal canlı taranıyor..." : "🔍 Connection established. Scanning 4 global channels live...");
-      ws.send("START_SCAN");
+      ws.send(`START_SCAN:${language}`);
     };
 
     ws.onmessage = (event) => {
