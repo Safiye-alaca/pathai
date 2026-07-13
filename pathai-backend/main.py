@@ -5,6 +5,7 @@ import datetime
 from typing import List
 import requests
 import re
+import time 
 
 # FastAPI Bileşenleri
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
@@ -756,30 +757,30 @@ def get_evaluation_history(db: Session = Depends(get_db)):
         })
     return formatted_records
 
-# [17. GÜN]: Çoklu Ajan Simülasyonunu Çalıştıran Merkezi Orkestratör
-# [18. GÜN]: Akıllı Önbellek (Semantic Cache) Destekli Çoklu Ajan Orkestratörü
+
+# [18/19. GÜN]: Akıllı Önbellek ve Rate-Limit Korumalı Çoklu Ajan Orkestratörü
 @app.get("/api/multi-agent/simulate", response_model=MultiAgentOrchestratorResponse)
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
     db = SessionLocal()
     normalized_input = normalize_text(project_title)
     
     try:
-        # 1. Aşama: Veritabanında Semantik veya Birebir Benzer Önbellek Var mı Kontrol Et
+        # 1. Aşama: Önbellek Kontrolü (Hafızadan anında dönerek limitleri korur)
         cached_record = get_semantic_match(project_title, db)
-        
         if cached_record:
-            print("🚀 [CACHE RETRIEVAL]: Veri Gemini'a gitmeden SQLite önbelleğinden 0.1ms'de çekildi!")
+            print("🚀 [CACHE RETRIEVAL]: Veri Gemini'a gitmeden SQLite önbelleğinden çekildi!")
             return {
-                "project_title": cached_record.original_title, # Orijinal kayıt başlığı
+                "project_title": cached_record.original_title,
                 "cto_report": json.loads(cached_record.cto_report_json),
                 "ceo_report": json.loads(cached_record.ceo_report_json),
                 "synergy_summary": cached_record.synergy_summary
             }
             
-        # 2. Aşama: Eğer Önbellekte Yoksa Gemini Ajanlarını Çalıştır (Dünkü Akış)
+        # 2. Aşama: Önbellekte Yoksa Sırayla ve Bekleyerek Çağır (Rate Limit Önlemi)
         print("🔮 [CACHE MISS]: Yeni proje! Gemini Ajanları tartışmaya başlıyor...")
         lang_instruction = get_language_instruction(lang)
         
+        # --- CTO AJANI ---
         cto_prompt = f"""
         Sen PathAI platformunun kıdemli CTO Ajanısın.
         "{sector}" sektöründe geliştirilecek "{project_title}" projesi için sadece teknik mimariyi tasarla.
@@ -787,16 +788,6 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         
         {lang_instruction}
         """
-        
-        ceo_prompt = f"""
-        Sen PathAI platformunun vizyoner CEO ve Business Development Ajanısın.
-        "{sector}" sektöründe geliştirilecek "{project_title}" projesi için ticari stratejiyi çiz.
-        Yazılım dilleri veya kod mimarisi hakkında asla konuşma. Sadece pazar, para, gelir modelleri ve kullanıcılar hakkında konuş.
-        
-        {lang_instruction}
-        """
-
-        # CTO Ajanı API Çağrısı
         cto_response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=cto_prompt,
@@ -808,7 +799,18 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         )
         cto_data = json.loads(cto_response.text)
 
-        # CEO Ajanı API Çağrısı
+        # 🛑 Rate Limit Önlemi 1: CEO isteğinden önce 2 saniye bekle
+        print("⏳ Rate limit koruması: CEO isteği öncesi bekleniyor...")
+        time.sleep(2.5)
+
+        # --- CEO AJANI ---
+        ceo_prompt = f"""
+        Sen PathAI platformunun vizyoner CEO ve Business Development Ajanısın.
+        "{sector}" sektöründe geliştirilecek "{project_title}" projesi için ticari stratejiyi çiz.
+        Yazılım dilleri veya kod mimarisi hakkında asla konuşma. Sadece pazar, para, gelir modelleri ve kullanıcılar hakkında konuş.
+        
+        {lang_instruction}
+        """
         ceo_response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=ceo_prompt,
@@ -820,7 +822,11 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         )
         ceo_data = json.loads(ceo_response.text)
 
-        # Sinerji Özeti API Çağrısı
+        # 🛑 Rate Limit Önlemi 2: Sinerji isteğinden önce 2.5 saniye bekle
+        print("⏳ Rate limit koruması: Sinerji özet isteği öncesi bekleniyor...")
+        time.sleep(2.5)
+
+        # --- SİNERJİ ROUTER ---
         synergy_prompt = f"""
         Bir projenin teknik raporu (CTO) ve iş geliştirme raporu (CEO) aşağıdadır:
         CTO Raporu: {cto_response.text}
@@ -830,14 +836,13 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         
         {lang_instruction}
         """
-        
         synergy_response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=synergy_prompt,
             config=types.GenerateContentConfig(temperature=0.6),
         )
 
-        # 3. Aşama: Gelen Başarılı Sonuçları Gelecekte Kullanmak Üzere Veritabanına Kaydet
+        # 3. Aşama: Veritabanına Önbellekle (Bir sonraki istekte sıfır API maliyeti!)
         new_cache = MultiAgentHistory(
             original_title=project_title,
             normalized_title=normalized_input,
