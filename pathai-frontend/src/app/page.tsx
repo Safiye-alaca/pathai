@@ -8,6 +8,7 @@ import EvaluatePanel from "../components/EvaluatePanel";
 import MediumPanel from "../components/MediumPanel";
 import ErrorBoundary from "../components/ErrorBoundary"; 
 import { LanguageProvider, useLanguage } from "../context/LanguageContext"; // Kesin çalışan göreli import yolu
+import MultiAgentPanel from "../components/MultiAgentPanel";
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 
@@ -184,13 +185,22 @@ function HomeContent() {
 
         {activeTab === "evaluate" && (
           <ErrorBoundary fallbackTitle="Fikir Eleştirmeni Simülasyonu Şu An Devre Dışı">
-            <EvaluatePanel
-              idea={idea}
-              setIdea={setIdea}
-              evaluationData={evaluationData}
-              evaluationLoading={evaluationLoading}
-              fetchEvaluation={fetchEvaluation}
-            />
+            <div className="space-y-8">
+              <EvaluatePanel
+                idea={idea}
+                setIdea={setIdea}
+                evaluationData={evaluationData}
+                evaluationLoading={evaluationLoading}
+                fetchEvaluation={fetchEvaluation}
+              />
+              
+              {/* [17. GÜN]: Kullanıcı bir fikir girdiğinde Çoklu Ajan Paneli devreye girer */}
+              {idea && (
+                <div className="animate-fade-in">
+                  <MultiAgentPanel projectTitle={idea} sector={sector || "Yazılım / Teknoloji"} />
+                </div>
+              )}
+            </div>
           </ErrorBoundary>
         )}
 

@@ -58,6 +58,25 @@ class MediumResponse(BaseModel):
     article_outline: str
     tags: List[str]
 
+# [17. GÜN]: CTO Ajanının Teknik Çıktı Şeması
+class CTOAnalysis(BaseModel):
+    software_architecture: str  # Monolitik mi, mikroservis mi, serverless mı ve neden?
+    database_design: str       # SQL mi, NoSQL mi, tablo/koleksiyon önerileri
+    security_infrastructure: str # JWT, OAuth2, veri şifreleme ve siber güvenlik önlemleri
+
+# [17. GÜN]: CEO/BizDev Ajanının İş Geliştirme Çıktı Şeması
+class CEOAnalysis(BaseModel):
+    target_audience: str       # Hedek kitle kimler (B2B, B2C, persona tanımı)
+    revenue_models: List[str]  # Gelir modelleri (Abonelik, komisyon, freemium vb.)
+    go_to_market_strategy: str # Pazara giriş ve büyüme stratejisi
+
+# [17. GÜN]: İki ajanın raporunu birleştiren Merkezi Router Şeması
+class MultiAgentOrchestratorResponse(BaseModel):
+    project_title: str
+    cto_report: CTOAnalysis
+    ceo_report: CEOAnalysis
+    synergy_summary: str        # İki ajanın raporunu harmanlayan genel mentor özeti
+
 # Veri tabanı oturumu (session) için bağımlılık enjeksiyonu (Dependency)
 def get_db():
     db = SessionLocal()
@@ -432,11 +451,16 @@ def evaluate_dev_project(project: str, lang: str = "tr"):
 def suggest_projects(area: str = None, level: str = "Orta", lang: str = "tr"):
     # [15. GÜN BAĞLAM OKUMA]: Eğer area boş geldiyse hafızadaki son sektöre bak
     db = SessionLocal()
-    context = db.query(UserContext).filter(UserContext.session_id == "default_user").first()
-    db.close()
+    try:
+        context = db.query(UserContext).filter(UserContext.session_id == "default_user").first()
+    except Exception as db_err:
+        print(f"⚠️ [MEMORY READ ERROR]: {str(db_err)}")
+        context = None
+    finally:
+        db.close()
 
-    # Eğer kullanıcı bir alan seçmediyse ve hafızada bir geçmiş varsa onu kullan, yoksa e-commerce'e fallback et
-    effective_area = area if area else (context.last_searched_sector if context and context.last_searched_sector else "e-commerce")
+    # Eğer frontend'den alan seçilmediyse ve hafızada bir pazar alanı varsa onu kullan, yoksa e-commerce'e fallback et
+    effective_area = area if area and area.strip() != "" else (context.last_searched_sector if context and context.last_searched_sector else "e-commerce")
 
     lang_instruction = get_language_instruction(lang)
     prompt = f"""
@@ -444,11 +468,28 @@ def suggest_projects(area: str = None, level: str = "Orta", lang: str = "tr"):
     Geliştirici adayı kendini teknik olarak geliştirmek için özellikle "{effective_area}" alanında ve "{level}" seviyesinde proje yapmak istiyor.
     
     Lütfen ona bu alanda yapabileceği, sıradan olmayan, CV'sinde parlayacak 4 farklı özgün proje fikri öner.
+    Response formatı kesinlikle 'ProjectSuggestionsResponse' şemasına tam uymalıdır.
     
     {lang_instruction}
     """
-    # ... geri kalan Gemini çağrısı ve return yapısı aynen kalıyor, prompt içindeki area yerine effective_area kullanılıyor.
+    
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ProjectSuggestionsResponse,
+                temperature=0.7
+            ),
+        )
+        # Gelen metni güvenli bir şekilde JSON objesine pars edip doğrudan dönüyoruz
+        return json.loads(response.text)
+    except Exception as gemini_error:
+        raise HTTPException(status_code=500, detail=str(gemini_error))
+    
 
+    
 # [16. GÜN]: Medium İçerik Asistanı için Anlık Akış (Streaming) Uç Noktası
 @app.get("/api/content-assistant", response_model=MediumResponse)
 def get_medium_strategy(topic: str, lang: str = "tr"):
@@ -640,3 +681,79 @@ def get_evaluation_history(db: Session = Depends(get_db)):
             "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S")
         })
     return formatted_records
+
+# [17. GÜN]: Çoklu Ajan Simülasyonunu Çalıştıran Merkezi Orkestratör
+@app.get("/api/multi-agent/simulate", response_model=MultiAgentOrchestratorResponse)
+def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
+    lang_instruction = get_language_instruction(lang)
+    
+    # 1. ADIM: CTO Agent Devreye Giriyor (Sadece Teknik Altyapı)
+    cto_prompt = f"""
+    Sen PathAI platformunun kıdemli CTO (Chief Technology Officer) Ajanısın.
+    "{sector}" sektöründe geliştirilecek "{project_title}" isimli proje için sadece teknik mimariyi tasarla.
+    Pazarlama, para veya hedef kitle hakkında asla konuşma. Sadece kod, veri tabanı, mimari ve güvenlik konuş.
+    
+    {lang_instruction}
+    """
+    
+    # 2. ADIM: CEO/BizDev Agent Devreye Giriyor (Sadece İş Mantığı)
+    ceo_prompt = f"""
+    Sen PathAI platformunun vizyoner CEO ve Business Development (İş Geliştirme) Ajanısın.
+    "{sector}" sektöründe geliştirilecek "{project_title}" isimli proje için ticari stratejiyi çiz.
+    Yazılım dilleri, veri tabanları veya kod mimarisi hakkında asla konuşma. Sadece pazar, para, gelir modelleri ve kullanıcılar hakkında konuş.
+    
+    {lang_instruction}
+    """
+
+    try:
+        # CTO Ajanı İşini Yapıyor
+        cto_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=cto_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=CTOAnalysis,
+                temperature=0.4 # Teknik konularda daha kararlı olması için sıcaklığı düşürdük
+            ),
+        )
+        cto_data = json.loads(cto_response.text)
+
+        # CEO Ajanı İşini Yapıyor
+        ceo_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=ceo_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=CEOAnalysis,
+                temperature=0.7 # Yaratıcı iş fikirleri için sıcaklık biraz daha yüksek
+            ),
+        )
+        ceo_data = json.loads(ceo_response.text)
+
+        # 3. ADIM: Merkezi Router İki Raporu Harmanlayıp Sinerji Özeti Çıkarıyor
+        synergy_prompt = f"""
+        Bir projenin teknik raporu (CTO) ve iş geliştirme raporu (CEO) aşağıdadır:
+        CTO Raporu: {cto_response.text}
+        CEO Raporu: {ceo_response.text}
+        
+        Lütfen bu iki raporu inceleyerek yazılımcı adayına bu projeyi hayata geçirirken teknik ve ticari olarak dikkat etmesi gereken en kritik 3 şeyi birleştirici bir mentor diliyle özetle.
+        
+        {lang_instruction}
+        """
+        
+        synergy_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=synergy_prompt,
+            config=types.GenerateContentConfig(temperature=0.6),
+        )
+
+        # Tüm veriler birleştirilip tek bir dev orkestrasyon objesi olarak dönüyor
+        return {
+            "project_title": project_title,
+            "cto_report": cto_data,
+            "ceo_report": ceo_data,
+            "synergy_summary": synergy_response.text
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
