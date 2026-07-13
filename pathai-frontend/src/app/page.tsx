@@ -99,7 +99,7 @@ function HomeContent() {
   const fetchMediumStrategy = async () => {
     if (!mediumTopic) return;
     setMediumLoading(true);
-    setMediumData(null);
+    setMediumData(null); // Tekrar obje kabul edecek şekilde sıfırlıyoruz
     try {
       const res = await fetch(`http://127.0.0.1:8000/api/content-assistant?topic=${encodeURIComponent(mediumTopic)}&lang=${language}`);
       setMediumData(await res.json());

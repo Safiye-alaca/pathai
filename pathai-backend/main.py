@@ -51,6 +51,13 @@ class UserContext(Base):
 # Tabloları veri tabanında otomatik oluşturuyoruz
 Base.metadata.create_all(bind=engine)
 
+# [16. GÜN]: Medium Asistanı Pydantic Yanıt Şeması
+class MediumResponse(BaseModel):
+    target_topic: str
+    suggested_titles: List[str]
+    article_outline: str
+    tags: List[str]
+
 # Veri tabanı oturumu (session) için bağımlılık enjeksiyonu (Dependency)
 def get_db():
     db = SessionLocal()
@@ -442,18 +449,14 @@ def suggest_projects(area: str = None, level: str = "Orta", lang: str = "tr"):
     """
     # ... geri kalan Gemini çağrısı ve return yapısı aynen kalıyor, prompt içindeki area yerine effective_area kullanılıyor.
 
-# [5. GÜN ENDPOINT'İ]: Proje veya konulardan teknik makale stratejisi üreten Medium Koordinatör Ajanı
-@app.get("/api/content-assistant")
+# [16. GÜN]: Medium İçerik Asistanı için Anlık Akış (Streaming) Uç Noktası
+@app.get("/api/content-assistant", response_model=MediumResponse)
 def get_medium_strategy(topic: str, lang: str = "tr"):
     lang_instruction = get_language_instruction(lang)
     prompt = f"""
-    Sen PathAI platformunun 'Medium Koordinatörü ve Teknik İçerik Stratejist Ajanı'sın.
-    Kullanıcı şu teknik konu veya proje hakkında blog yazısı yazmak istiyor: "{topic}"
-    
-    Lütfen bu konu için:
-    1. Tıklanma oranı yüksek, merak uyandırıcı ve teknik 3 adet dikkat çekici başlık üret.
-    2. Geliştiricinin altını doldurarak harika bir yazı çıkarabileceği, giriş-gelişme-sonuç bölümlerini detaylandıran zengin bir makale taslağı (outline) hazırla.
-    3. Medium'da ivme yakalayabileceği 5 adet popüler teknik etiket belirle.
+    Sen profesyonel bir teknik içerik üreticisi ve Medium yazarısın.
+    Kullanıcı "{topic}" konusu hakkında bir makale yazmak istiyor.
+    Lütfen yanıtını tamamen JSON formatında üret.
     
     {lang_instruction}
     """
@@ -463,14 +466,13 @@ def get_medium_strategy(topic: str, lang: str = "tr"):
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=MediumAssistantResponse,
-                temperature=0.6
+                response_schema=MediumResponse,
+                temperature=0.7
             ),
         )
         return json.loads(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # =====================================================================
 # [7. GÜN]: CANLI RADAR WEBSOCKET ENDPOINT'İ - ÇOKLU DİL DESTEKLİ

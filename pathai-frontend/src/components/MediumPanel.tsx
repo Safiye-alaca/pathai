@@ -13,7 +13,7 @@ interface MediumResponse {
 interface MediumPanelProps {
   mediumTopic: string;
   setMediumTopic: (val: string) => void;
-  mediumData: MediumResponse | null;
+  mediumData: MediumResponse | null; // Eski harika obje tipine geri döndü
   mediumLoading: boolean;
   fetchMediumStrategy: () => void;
 }
@@ -26,7 +26,6 @@ export default function MediumPanel({
   fetchMediumStrategy
 }: MediumPanelProps) {
   
-  // 13. Gün: Dil sözlüğünü aktif ediyoruz
   const { t } = useLanguage();
 
   return (
