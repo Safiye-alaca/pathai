@@ -6,6 +6,8 @@ from typing import List
 import requests
 import re
 import time 
+from pydantic import BaseModel, Field
+from typing import List
 
 # FastAPI Bileşenleri
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
@@ -72,12 +74,22 @@ class CEOAnalysis(BaseModel):
     revenue_models: List[str]  # Gelir modelleri (Abonelik, komisyon, freemium vb.)
     go_to_market_strategy: str # Pazara giriş ve büyüme stratejisi
 
+# [20. GÜN]: Kullanıcı Personası ve Eleştirel Test Şeması
+class UserPersonaAnalysis(BaseModel):
+    persona_name: str = Field(description="Sanal kullanıcının adı ve soyadı veya takma adı")
+    demographics: str = Field(description="Yaş, meslek, gelir düzeyi ve teknoloji kullanım alışkanlıkları")
+    pain_points: List[str] = Field(description="Bu kullanıcının günlük hayatta yaşadığı ve bu ürünün çözebileceği 3 kritik problem")
+    brutal_feedback: str = Field(description="Kullanıcının bu projeye yönelik acımasız, samimi ve gerçekçi eleştirisi")
+    adoption_score: int = Field(description="Kullanıcının bu ürünü gerçekten kullanma ve satın alma ihtimali (1-100 arası puan)")
+
 # [17. GÜN]: İki ajanın raporunu birleştiren Merkezi Router Şeması
 class MultiAgentOrchestratorResponse(BaseModel):
     project_title: str
     cto_report: CTOAnalysis
     ceo_report: CEOAnalysis
-    synergy_summary: str        # İki ajanın raporunu harmanlayan genel mentor özeti
+    synergy_summary: str
+    user_test: UserPersonaAnalysis # Yeni eklenen kullanıcı simülasyonu alanı
+
 
 # [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
 class MultiAgentHistory(Base):
@@ -94,6 +106,7 @@ class MultiAgentHistory(Base):
     ceo_report_json = Column(String, nullable=False)
     synergy_summary = Column(String, nullable=False)
     
+    user_test_json = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.now)
 
 # SQLite tablolarının otomatik oluşturulduğundan emin olmak için (dosyanın ortalarında bir yerde zaten vardır):
@@ -765,18 +778,19 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
     normalized_input = normalize_text(project_title)
     
     try:
-        # 1. Aşama: Önbellek Kontrolü (Hafızadan anında dönerek limitleri korur)
+        # 1. Aşama: Önbellek Kontrolü
         cached_record = get_semantic_match(project_title, db)
-        if cached_record:
+        if cached_record and cached_record.user_test_json: # user_test_json doluysa önbellekten oku
             print("🚀 [CACHE RETRIEVAL]: Veri Gemini'a gitmeden SQLite önbelleğinden çekildi!")
             return {
                 "project_title": cached_record.original_title,
                 "cto_report": json.loads(cached_record.cto_report_json),
                 "ceo_report": json.loads(cached_record.ceo_report_json),
-                "synergy_summary": cached_record.synergy_summary
+                "synergy_summary": cached_record.synergy_summary,
+                "user_test": json.loads(cached_record.user_test_json)
             }
             
-        # 2. Aşama: Önbellekte Yoksa Sırayla ve Bekleyerek Çağır (Rate Limit Önlemi)
+        # 2. Aşama: Önbellekte Yoksa Sırayla ve Bekleyerek Çağır
         print("🔮 [CACHE MISS]: Yeni proje! Gemini Ajanları tartışmaya başlıyor...")
         lang_instruction = get_language_instruction(lang)
         
@@ -799,7 +813,7 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         )
         cto_data = json.loads(cto_response.text)
 
-        # 🛑 Rate Limit Önlemi 1: CEO isteğinden önce 2 saniye bekle
+        # Rate Limit Önlemi: CEO öncesi bekleme
         print("⏳ Rate limit koruması: CEO isteği öncesi bekleniyor...")
         time.sleep(2.5)
 
@@ -822,7 +836,7 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         )
         ceo_data = json.loads(ceo_response.text)
 
-        # 🛑 Rate Limit Önlemi 2: Sinerji isteğinden önce 2.5 saniye bekle
+        # Rate Limit Önlemi: Sinerji öncesi bekleme
         print("⏳ Rate limit koruması: Sinerji özet isteği öncesi bekleniyor...")
         time.sleep(2.5)
 
@@ -842,24 +856,54 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             config=types.GenerateContentConfig(temperature=0.6),
         )
 
-        # 3. Aşama: Veritabanına Önbellekle (Bir sonraki istekte sıfır API maliyeti!)
+        # Rate Limit Önlemi: Persona testi öncesi bekleme
+        print("⏳ Rate limit koruması: Persona simülasyonu öncesi bekleniyor...")
+        time.sleep(2.5)
+
+        # --- USER PERSONA AJANI (Yeni Eklenen Adım) ---
+        user_prompt = f"""
+        Sen bu projenin potansiyel hedef kitlesinde yer alan gerçekçi ve bir o kadar da seçici bir kullanıcısın (Persona).
+        Proje Başlığı: "{project_title}"
+        Sektör: "{sector}"
+        CEO'nun Belirlediği Hedef Kitle İpucu: "{ceo_data.get('target_audience', '')}"
+
+        Lütfen bu projeyi inceleyerek samimi, dürüst ve eleştirel bir kullanıcı rolü üstlen.
+        Bu uygulamayı gerçekten telefonuna indirir miydin veya kullanır mıydın? Kullanırken yaşayacağın en büyük zorluk ne olurdu?
+        Acımasız ol ama yapıcı eleştiriler sun. Sonunda bu projeye 1-100 arası bir benimseme puanı (adoption score) ver.
+        
+        {lang_instruction}
+        """
+        user_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=UserPersonaAnalysis,
+                temperature=0.8 # Daha yaratıcı ve özgün yanıtlar için temperature'ı biraz yüksek tutuyoruz
+            ),
+        )
+        user_data = json.loads(user_response.text)
+
+        # 3. Aşama: Veritabanına Önbellekle
         new_cache = MultiAgentHistory(
             original_title=project_title,
             normalized_title=normalized_input,
             sector=sector,
             cto_report_json=json.dumps(cto_data),
             ceo_report_json=json.dumps(ceo_data),
-            synergy_summary=synergy_response.text
+            synergy_summary=synergy_response.text,
+            user_test_json=json.dumps(user_data) # Yeni sütun kaydı
         )
         db.add(new_cache)
         db.commit()
-        print("💾 [CACHE WRITE]: Yeni analiz raporu SQLite'a başarıyla önbelleklendi!")
+        print("💾 [CACHE WRITE]: Yeni analiz ve kullanıcı testi raporu SQLite'a başarıyla önbelleklendi!")
 
         return {
             "project_title": project_title,
             "cto_report": cto_data,
             "ceo_report": ceo_data,
-            "synergy_summary": synergy_response.text
+            "synergy_summary": synergy_response.text,
+            "user_test": user_data
         }
 
     except Exception as e:

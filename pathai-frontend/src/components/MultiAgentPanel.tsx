@@ -17,11 +17,21 @@ interface CEOAnalysis {
   go_to_market_strategy: string;
 }
 
+// [20. GÜN]: Yeni Kullanıcı Personası Arayüzü
+interface UserPersonaAnalysis {
+  persona_name: string;
+  demographics: string;
+  pain_points: string[];
+  brutal_feedback: string;
+  adoption_score: number;
+}
+
 interface MultiAgentData {
   project_title: string;
   cto_report: CTOAnalysis;
   ceo_report: CEOAnalysis;
   synergy_summary: string;
+  user_test: UserPersonaAnalysis; // [20. GÜN]
 }
 
 interface MultiAgentPanelProps {
@@ -33,9 +43,8 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
   const { language } = useLanguage();
   const [data, setData] = useState<MultiAgentData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "synergy" | "full">("cto");
+  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "user" | "synergy" | "full">("cto");
   
-  // PDF'e dönüştürülecek gizli tam rapor alanını referanslamak için ref kullanıyoruz
   const reportRef = useRef<HTMLDivElement>(null);
 
   const runSimulation = async () => {
@@ -50,7 +59,6 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
       if (res.ok) {
         const result = await res.json();
         setData(result);
-        // Varsayılan olarak tüm rapor görünümüne geçebiliriz ki indirme öncesi hazır olsun
         setActiveTab("full");
       }
     } catch (err) {
@@ -64,7 +72,6 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
     if (!reportRef.current || !data) return;
 
     try {
-      // PDF kalitesi için canvas ölçeğini artırıyoruz
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         useCORS: true,
@@ -72,20 +79,16 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
       });
 
       const imgData = canvas.toDataURL("image/png");
-      
-      // Standart A4 boyutlarında PDF oluşturma
       const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210; // A4 genişliği (mm)
-      const pageHeight = 295; // A4 yüksekliği (mm)
+      const imgWidth = 210;
+      const pageHeight = 295;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
       let position = 0;
 
-      // İlk sayfayı ekle
       pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
 
-      // İçerik A4'ten uzunsa yeni sayfalar oluştur
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
@@ -93,12 +96,18 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
         heightLeft -= pageHeight;
       }
 
-      // Dosya adını temizleyip indiriyoruz
       const cleanTitle = data.project_title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
       pdf.save(`pathai_multi_agent_${cleanTitle}.pdf`);
     } catch (error) {
       console.error("PDF generation failed:", error);
     }
+  };
+
+  // Puan rengini belirlemek için yardımcı fonksiyon
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-emerald-600 bg-emerald-50 border-emerald-100";
+    if (score >= 50) return "text-amber-600 bg-amber-50 border-amber-100";
+    return "text-rose-600 bg-rose-50 border-rose-100";
   };
 
   return (
@@ -109,7 +118,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             <span>🤝</span> Multi-Agent Sinerji Simülasyonu
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            CTO ve CEO ajanları projenizi eş zamanlı analiz eder.
+            CTO, CEO ve Sanal Müşteri ajanları projenizi eş zamanlı analiz eder.
           </p>
         </div>
         <div className="flex gap-2">
@@ -133,11 +142,11 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
 
       {data && (
         <div className="space-y-6">
-          {/* Ajan Sekme Menüsü */}
-          <div className="flex bg-purple-50 p-1 rounded-xl gap-1">
+          {/* Sekme Menüsü */}
+          <div className="flex bg-purple-50 p-1 rounded-xl gap-1 overflow-x-auto">
             <button
               onClick={() => setActiveTab("cto")}
-              className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
                 activeTab === "cto" ? "bg-purple-600 text-white shadow-sm" : "text-purple-950 hover:bg-purple-100/50"
               }`}
             >
@@ -145,15 +154,23 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             </button>
             <button
               onClick={() => setActiveTab("ceo")}
-              className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
                 activeTab === "ceo" ? "bg-purple-600 text-white shadow-sm" : "text-purple-950 hover:bg-purple-100/50"
               }`}
             >
               💼 CEO Raporu
             </button>
             <button
+              onClick={() => setActiveTab("user")}
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
+                activeTab === "user" ? "bg-pink-600 text-white shadow-sm" : "text-pink-950 hover:bg-pink-100/50"
+              }`}
+            >
+              👤 Kullanıcı Testi
+            </button>
+            <button
               onClick={() => setActiveTab("synergy")}
-              className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
                 activeTab === "synergy" ? "bg-indigo-600 text-white shadow-sm" : "text-indigo-950 hover:bg-indigo-100/50"
               }`}
             >
@@ -161,7 +178,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             </button>
             <button
               onClick={() => setActiveTab("full")}
-              className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
                 activeTab === "full" ? "bg-slate-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -169,12 +186,12 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             </button>
           </div>
 
-          {/* PDF çıktısı alınacak ve ekranda gösterilecek şablon */}
+          {/* Rapor İçeriği */}
           <div 
             ref={reportRef} 
             className="p-6 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed space-y-6"
           >
-            {/* PDF Başlık Alanı (Sadece PDF'te parlayacak kurumsal şerit) */}
+            {/* Üst Bilgi */}
             <div className="border-b-2 border-purple-600 pb-4 flex justify-between items-center">
               <div>
                 <span className="text-[10px] uppercase tracking-wider font-extrabold text-purple-600">PathAI Stratejik Girişim Raporu</span>
@@ -186,7 +203,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             </div>
 
-            {/* Dinamik Görünüm Koşulları */}
+            {/* CTO */}
             {(activeTab === "cto" || activeTab === "full") && (
               <div className="space-y-4">
                 <h3 className="font-black text-purple-950 text-sm border-l-4 border-purple-600 pl-2">💻 CTO Teknik Analiz Raporu</h3>
@@ -207,6 +224,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             )}
 
+            {/* CEO */}
             {(activeTab === "ceo" || activeTab === "full") && (
               <div className="space-y-4 pt-4">
                 <h3 className="font-black text-purple-950 text-sm border-l-4 border-purple-600 pl-2">💼 CEO Stratejik İş Geliştirme Raporu</h3>
@@ -231,6 +249,43 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             )}
 
+            {/* [20. GÜN]: Sanal Kullanıcı Test Sonuçları */}
+            {(activeTab === "user" || activeTab === "full") && data.user_test && (
+              <div className="space-y-4 pt-4 border-t border-pink-100">
+                <h3 className="font-black text-pink-950 text-sm border-l-4 border-pink-500 pl-2">👤 Sanal Müşteri & Kullanıcı Uyumluluk Testi</h3>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Sol Sütun: Profil Bilgisi ve Puan */}
+                  <div className="md:col-span-4 bg-white p-4 rounded-xl border border-pink-100 space-y-3 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-bold text-pink-900 text-sm">{data.user_test.persona_name}</h4>
+                      <p className="text-slate-500 text-[10px] mt-1">{data.user_test.demographics}</p>
+                    </div>
+                    <div className={`p-3 rounded-lg border text-center ${getScoreColor(data.user_test.adoption_score)}`}>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wide block">Benimseme Puanı</span>
+                      <span className="text-3xl font-black">{data.user_test.adoption_score}%</span>
+                    </div>
+                  </div>
+
+                  {/* Sağ Sütun: Beklentiler ve Acımasız Geri Bildirim */}
+                  <div className="md:col-span-8 space-y-4">
+                    <div className="bg-white p-4 rounded-xl border border-slate-100">
+                      <h4 className="font-bold text-slate-900 mb-1">🚨 Kullanıcı Acı Noktaları (Bu üründen ne bekliyor?)</h4>
+                      <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-600">
+                        {data.user_test.pain_points.map((point, i) => (
+                          <li key={i}>{point}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="bg-rose-50/50 p-4 rounded-xl border border-rose-100/50">
+                      <h4 className="font-black text-rose-950 mb-1">💬 Acımasız Samimi Eleştiri (Brutal Feedback)</h4>
+                      <p className="text-rose-900 italic font-medium">"{data.user_test.brutal_feedback}"</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sinerji */}
             {(activeTab === "synergy" || activeTab === "full") && (
               <div className="space-y-2 pt-4 border-t border-slate-200">
                 <h3 className="font-black text-indigo-950 text-sm border-l-4 border-indigo-600 pl-2">✨ Ortak Sinerji & Mentor Tavsiyesi</h3>
