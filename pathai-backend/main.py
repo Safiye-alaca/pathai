@@ -4,6 +4,7 @@ import asyncio  # 7. Gün: Gerçek zamanlı akış gecikmeleri için eklendi
 import datetime
 from typing import List
 import requests
+import re
 
 # FastAPI Bileşenleri
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
@@ -76,6 +77,79 @@ class MultiAgentOrchestratorResponse(BaseModel):
     cto_report: CTOAnalysis
     ceo_report: CEOAnalysis
     synergy_summary: str        # İki ajanın raporunu harmanlayan genel mentor özeti
+
+# [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
+class MultiAgentHistory(Base):
+    __tablename__ = "multi_agent_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # Kullanıcının girdiği orijinal ve normalize edilmiş arama başlıkları
+    original_title = Column(String, nullable=False)
+    normalized_title = Column(String, unique=True, index=True, nullable=False)
+    sector = Column(String, nullable=False)
+    
+    # SQLite büyük metinleri saklayabilmek için JSON formatında tutacağız
+    cto_report_json = Column(String, nullable=False)
+    ceo_report_json = Column(String, nullable=False)
+    synergy_summary = Column(String, nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.datetime.now)
+
+# SQLite tablolarının otomatik oluşturulduğundan emin olmak için (dosyanın ortalarında bir yerde zaten vardır):
+Base.metadata.create_all(bind=engine)
+
+# Harf ve karakterleri standardize etme (Exact Match hazırlığı)
+def normalize_text(text: str) -> str:
+    if not text:
+        return ""
+    text = text.lower().strip()
+    # Türkçe karakter dönüşümleri
+    replacements = {
+        'ı': 'i', 'ş': 's', 'ğ': 'g', 'ü': 'u', 'ö': 'o', 'ç': 'c'
+    }
+    for search, replace in replacements.items():
+        text = text.replace(search, replace)
+    # Sadece harf, rakam ve boşlukları bırak, noktalama işaretlerini temizle
+    text = re.sub(r'[^a-z0-9\s]', '', text)
+    # Fazla boşlukları tek boşluğa indirge
+    return " ".join(text.split())
+
+# Basit Kelime Çakışması (Jaccard Similarity) ile Semantik Yakınlık Ölçümü
+def get_semantic_match(new_title: str, db_sessions) -> MultiAgentHistory:
+    new_norm = normalize_text(new_title)
+    new_words = set(new_norm.split())
+    
+    # Eğer çok kısa bir girdi ise semantik arama yapma, birebir eşleşmeye zorla
+    if len(new_words) < 2:
+        return db_sessions.query(MultiAgentHistory).filter(MultiAgentHistory.normalized_title == new_norm).first()
+        
+    all_cached = db_sessions.query(MultiAgentHistory).all()
+    
+    best_match = None
+    highest_similarity = 0.0
+    
+    for record in all_cached:
+        # Birebir eşleşme varsa doğrudan döndür
+        if record.normalized_title == new_norm:
+            return record
+            
+        record_words = set(record.normalized_title.split())
+        if not record_words:
+            continue
+            
+        # Jaccard Katsayısı: Kesişim / Birleşim (Ortak kelimelerin toplam benzersiz kelimelere oranı)
+        intersection = new_words.intersection(record_words)
+        union = new_words.union(record_words)
+        similarity = len(intersection) / len(union)
+        
+        # Eğer iki başlığın kelime benzerliği %75'in üzerindeyse aynı proje olarak kabul et
+        if similarity > 0.75 and similarity > highest_similarity:
+            highest_similarity = similarity
+            best_match = record
+            
+    if best_match:
+        print(f"🎯 [SEMANTIC CACHE HIT]: '{new_title}' ifadesi '{best_match.original_title}' ile %{int(highest_similarity*100)} benzer bulundu!")
+    return best_match
 
 # Veri tabanı oturumu (session) için bağımlılık enjeksiyonu (Dependency)
 def get_db():
@@ -683,54 +757,70 @@ def get_evaluation_history(db: Session = Depends(get_db)):
     return formatted_records
 
 # [17. GÜN]: Çoklu Ajan Simülasyonunu Çalıştıran Merkezi Orkestratör
+# [18. GÜN]: Akıllı Önbellek (Semantic Cache) Destekli Çoklu Ajan Orkestratörü
 @app.get("/api/multi-agent/simulate", response_model=MultiAgentOrchestratorResponse)
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
-    lang_instruction = get_language_instruction(lang)
+    db = SessionLocal()
+    normalized_input = normalize_text(project_title)
     
-    # 1. ADIM: CTO Agent Devreye Giriyor (Sadece Teknik Altyapı)
-    cto_prompt = f"""
-    Sen PathAI platformunun kıdemli CTO (Chief Technology Officer) Ajanısın.
-    "{sector}" sektöründe geliştirilecek "{project_title}" isimli proje için sadece teknik mimariyi tasarla.
-    Pazarlama, para veya hedef kitle hakkında asla konuşma. Sadece kod, veri tabanı, mimari ve güvenlik konuş.
-    
-    {lang_instruction}
-    """
-    
-    # 2. ADIM: CEO/BizDev Agent Devreye Giriyor (Sadece İş Mantığı)
-    ceo_prompt = f"""
-    Sen PathAI platformunun vizyoner CEO ve Business Development (İş Geliştirme) Ajanısın.
-    "{sector}" sektöründe geliştirilecek "{project_title}" isimli proje için ticari stratejiyi çiz.
-    Yazılım dilleri, veri tabanları veya kod mimarisi hakkında asla konuşma. Sadece pazar, para, gelir modelleri ve kullanıcılar hakkında konuş.
-    
-    {lang_instruction}
-    """
-
     try:
-        # CTO Ajanı İşini Yapıyor
+        # 1. Aşama: Veritabanında Semantik veya Birebir Benzer Önbellek Var mı Kontrol Et
+        cached_record = get_semantic_match(project_title, db)
+        
+        if cached_record:
+            print("🚀 [CACHE RETRIEVAL]: Veri Gemini'a gitmeden SQLite önbelleğinden 0.1ms'de çekildi!")
+            return {
+                "project_title": cached_record.original_title, # Orijinal kayıt başlığı
+                "cto_report": json.loads(cached_record.cto_report_json),
+                "ceo_report": json.loads(cached_record.ceo_report_json),
+                "synergy_summary": cached_record.synergy_summary
+            }
+            
+        # 2. Aşama: Eğer Önbellekte Yoksa Gemini Ajanlarını Çalıştır (Dünkü Akış)
+        print("🔮 [CACHE MISS]: Yeni proje! Gemini Ajanları tartışmaya başlıyor...")
+        lang_instruction = get_language_instruction(lang)
+        
+        cto_prompt = f"""
+        Sen PathAI platformunun kıdemli CTO Ajanısın.
+        "{sector}" sektöründe geliştirilecek "{project_title}" projesi için sadece teknik mimariyi tasarla.
+        Pazarlama, para veya hedef kitle hakkında asla konuşma. Sadece kod, veri tabanı, mimari ve güvenlik konuş.
+        
+        {lang_instruction}
+        """
+        
+        ceo_prompt = f"""
+        Sen PathAI platformunun vizyoner CEO ve Business Development Ajanısın.
+        "{sector}" sektöründe geliştirilecek "{project_title}" projesi için ticari stratejiyi çiz.
+        Yazılım dilleri veya kod mimarisi hakkında asla konuşma. Sadece pazar, para, gelir modelleri ve kullanıcılar hakkında konuş.
+        
+        {lang_instruction}
+        """
+
+        # CTO Ajanı API Çağrısı
         cto_response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=cto_prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=CTOAnalysis,
-                temperature=0.4 # Teknik konularda daha kararlı olması için sıcaklığı düşürdük
+                temperature=0.4
             ),
         )
         cto_data = json.loads(cto_response.text)
 
-        # CEO Ajanı İşini Yapıyor
+        # CEO Ajanı API Çağrısı
         ceo_response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=ceo_prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=CEOAnalysis,
-                temperature=0.7 # Yaratıcı iş fikirleri için sıcaklık biraz daha yüksek
+                temperature=0.7
             ),
         )
         ceo_data = json.loads(ceo_response.text)
 
-        # 3. ADIM: Merkezi Router İki Raporu Harmanlayıp Sinerji Özeti Çıkarıyor
+        # Sinerji Özeti API Çağrısı
         synergy_prompt = f"""
         Bir projenin teknik raporu (CTO) ve iş geliştirme raporu (CEO) aşağıdadır:
         CTO Raporu: {cto_response.text}
@@ -747,7 +837,19 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             config=types.GenerateContentConfig(temperature=0.6),
         )
 
-        # Tüm veriler birleştirilip tek bir dev orkestrasyon objesi olarak dönüyor
+        # 3. Aşama: Gelen Başarılı Sonuçları Gelecekte Kullanmak Üzere Veritabanına Kaydet
+        new_cache = MultiAgentHistory(
+            original_title=project_title,
+            normalized_title=normalized_input,
+            sector=sector,
+            cto_report_json=json.dumps(cto_data),
+            ceo_report_json=json.dumps(ceo_data),
+            synergy_summary=synergy_response.text
+        )
+        db.add(new_cache)
+        db.commit()
+        print("💾 [CACHE WRITE]: Yeni analiz raporu SQLite'a başarıyla önbelleklendi!")
+
         return {
             "project_title": project_title,
             "cto_report": cto_data,
@@ -756,4 +858,7 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         }
 
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
