@@ -25,11 +25,22 @@ interface UserPersonaAnalysis {
   adoption_score: number;
 }
 
-// [21. GÜN]: Yeni Ajan Tartışması Şeması
 interface AgentDebateAnalysis {
   cto_criticism: string;
   ceo_criticism: string;
   mvp_consensus: string;
+}
+
+// [22. GÜN]: Yeni Rekabet Analizi Şemaları
+interface CompetitorInfo {
+  name: string;
+  weakness: string;
+  our_advantage: string;
+}
+
+interface CompetitorAnalysis {
+  competitors: CompetitorInfo[];
+  positioning_strategy: string;
 }
 
 interface MultiAgentData {
@@ -38,7 +49,8 @@ interface MultiAgentData {
   ceo_report: CEOAnalysis;
   synergy_summary: string;
   user_test: UserPersonaAnalysis;
-  debate_report: AgentDebateAnalysis; // [21. GÜN]
+  debate_report: AgentDebateAnalysis;
+  competitor_report: CompetitorAnalysis; // [22. GÜN]
 }
 
 interface MultiAgentPanelProps {
@@ -50,7 +62,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
   const { language } = useLanguage();
   const [data, setData] = useState<MultiAgentData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "user" | "synergy" | "full">("cto");
+  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "user" | "synergy" | "full">("cto");
   
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +136,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             <span>🤝</span> Multi-Agent Sinerji Simülasyonu
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            CTO, CEO, Sanal Müşteri ve tartışma orkestrasyonu projenizi analiz eder.
+            Girişiminiz için CTO, CEO, Pazar Analisti ve Sanal Kullanıcı ajanları ortak çalışır.
           </p>
         </div>
         <div className="flex gap-2">
@@ -173,6 +185,14 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               }`}
             >
               ⚔️ Ajan Tartışması
+            </button>
+            <button
+              onClick={() => setActiveTab("competitor")}
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
+                activeTab === "competitor" ? "bg-cyan-600 text-white shadow-sm" : "text-cyan-950 hover:bg-cyan-100/50"
+              }`}
+            >
+              📊 Rakip Analizi
             </button>
             <button
               onClick={() => setActiveTab("user")}
@@ -263,37 +283,63 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             )}
 
-            {/* [21. GÜN]: Ajanlar Arası Çatışma ve Tartışma Paneli */}
+            {/* Ajan Tartışması */}
             {(activeTab === "debate" || activeTab === "full") && data.debate_report && (
               <div className="space-y-4 pt-4 border-t border-amber-100">
                 <h3 className="font-black text-amber-950 text-sm border-l-4 border-amber-500 pl-2">⚔️ Ajanlar Arası Çatışma ve MVP Uzlaşısı</h3>
                 <div className="space-y-4">
-                  {/* Karşılıklı Atışma Kartları */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* CTO'nun CEO'ya eleştirisi */}
                     <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl relative">
                       <span className="absolute -top-2 left-4 px-2 py-0.5 bg-indigo-600 text-white font-extrabold text-[9px] rounded-full uppercase">CTO'nun Eleştirisi</span>
-                      <p className="text-indigo-950 font-medium italic pt-1">
-                        "{data.debate_report.cto_criticism}"
-                      </p>
+                      <p className="text-indigo-950 font-medium italic pt-1">"{data.debate_report.cto_criticism}"</p>
                     </div>
-
-                    {/* CEO'nun CTO'ya eleştirisi */}
                     <div className="bg-purple-50/50 border border-purple-100 p-4 rounded-2xl relative">
                       <span className="absolute -top-2 left-4 px-2 py-0.5 bg-purple-600 text-white font-extrabold text-[9px] rounded-full uppercase">CEO'nun Eleştirisi</span>
-                      <p className="text-purple-950 font-medium italic pt-1">
-                        "{data.debate_report.ceo_criticism}"
-                      </p>
+                      <p className="text-purple-950 font-medium italic pt-1">"{data.debate_report.ceo_criticism}"</p>
                     </div>
                   </div>
-
-                  {/* Konsensüs Ortak MVP Kararı */}
                   <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-5 rounded-2xl">
                     <h4 className="font-black text-amber-950 text-xs mb-2 flex items-center gap-1.5">
                       <span>🤝</span> Ortak Yönetim Kurulu Kararı: Nihai MVP Yol Haritası
                     </h4>
-                    <p className="text-amber-900 font-semibold leading-relaxed">
-                      {data.debate_report.mvp_consensus}
+                    <p className="text-amber-900 font-semibold leading-relaxed">{data.debate_report.mvp_consensus}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* [22. GÜN]: Rekabet Analizi ve Konumlandırma Paneli */}
+            {(activeTab === "competitor" || activeTab === "full") && data.competitor_report && (
+              <div className="space-y-4 pt-4 border-t border-cyan-100">
+                <h3 className="font-black text-cyan-950 text-sm border-l-4 border-cyan-500 pl-2">📊 Sektörel Rekabet Analizi & Konumlandırma</h3>
+                <div className="space-y-4">
+                  {/* Rakip Kartları */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {data.competitor_report.competitors.map((comp, i) => (
+                      <div key={i} className="bg-white border border-cyan-50 p-4 rounded-2xl space-y-2.5">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                          <h4 className="font-black text-cyan-900 text-xs">🚀 Rakip: {comp.name}</h4>
+                          <span className="text-[10px] bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full font-bold">Doğrudan Alternatif</span>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-slate-400 font-bold block">⚠️ En Zayıf Noktası (Açığı):</span>
+                          <p className="text-slate-600 italic">"{comp.weakness}"</p>
+                        </div>
+                        <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50 space-y-1">
+                          <span className="text-[10px] text-emerald-800 font-bold block">🛡️ Bizim Haksız Avantajımız (Moat):</span>
+                          <p className="text-emerald-950 font-medium">{comp.our_advantage}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Konumlandırma Stratejisi */}
+                  <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-200 p-5 rounded-2xl">
+                    <h4 className="font-black text-cyan-950 text-xs mb-2 flex items-center gap-1.5">
+                      <span>🎯</span> Mavi Okyanus Konumlandırma Stratejimiz
+                    </h4>
+                    <p className="text-cyan-900 font-semibold leading-relaxed">
+                      {data.competitor_report.positioning_strategy}
                     </p>
                   </div>
                 </div>

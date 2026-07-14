@@ -105,6 +105,26 @@ class MultiAgentOrchestratorResponse(BaseModel):
     user_test: UserPersonaAnalysis
     debate_report: AgentDebateAnalysis # [21. GÜN]: Yeni eklenen tartışma katmanı
 
+# [22. GÜN]: Rekabet Analizi ve Konumlandırma Şemaları
+class CompetitorInfo(BaseModel):
+    name: str = Field(description="Rakip firmanın veya uygulamanın adı")
+    weakness: str = Field(description="Bu rakibin en zayıf noktası, kullanıcıları en çok üzen yanı")
+    our_advantage: str = Field(description="Bizim bu rakibe karşı yaratacağımız ezici teknik veya işlevsel üstünlük")
+
+class CompetitorAnalysis(BaseModel):
+    competitors: List[CompetitorInfo] = Field(description="En kritik 2 doğrudan veya dolaylı rakibin analizi")
+    positioning_strategy: str = Field(description="Pazardaki konumlandırma stratejimiz (Mavi Okyanus Stratejisi - bizi onlardan ayıran nihai yön)")
+
+# Ana yanıt modeline bu yeni analiz katmanını da dahil ediyoruz
+class MultiAgentOrchestratorResponse(BaseModel):
+    project_title: str
+    cto_report: CTOAnalysis
+    ceo_report: CEOAnalysis
+    synergy_summary: str
+    user_test: UserPersonaAnalysis
+    debate_report: AgentDebateAnalysis
+    competitor_report: CompetitorAnalysis # [22. GÜN]: Yeni eklenen rakip analizi alanı
+
 # [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
 class MultiAgentHistory(Base):
     __tablename__ = "multi_agent_history"
@@ -868,9 +888,9 @@ MOCK_MODE = True
 
 @app.get("/api/multi-agent/simulate", response_model=MultiAgentOrchestratorResponse)
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
-    # 🚨 MOCK MODU AKTİFSE GEMINI'A GİTME, ANINDA YENİ TARTIŞMA VERİSİ DÖN
+    # 🚨 MOCK MODU AKTİFSE GEMINI'A GİTME, ANINDA YENİ TEST VERİSİ DÖN
     if MOCK_MODE:
-        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Tartışmalı test verisi üretiliyor...")
+        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Rakip analizli test verisi üretiliyor...")
         return {
             "project_title": project_title,
             "cto_report": {
@@ -892,9 +912,24 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
                 "adoption_score": 85
             },
             "debate_report": {
-                "cto_criticism": "CEO'nun önerdiği 'SaaS abonelik modeli' için erken aşamada çok karmaşık bir ödeme altyapısı kurmamız gerekir. İlk etapta tekil ödemelerle başlamak teknik borcu (technical debt) azaltacaktır.",
-                "ceo_criticism": "CTO'nun önerdiği 'Mikroservis mimarisi' ve 'Redis katmanı' MVP aşaması için çok lüks. Bu mimariyi kurmak pazara çıkışımızı en az 2 ay geciktirir. Basit bir monolit yapıyla başlamalıyız.",
-                "mvp_consensus": "Ortak karar: Projeye PostgreSQL kullanan monolit bir FastAPI yapısıyla başlanacak. Ödeme sistemi olarak karmaşık abonelikler yerine, kullanıcıların sadece kullandıkları kadar ödeyecekleri basit bir entegrasyon (pay-as-you-go) kurulacak. Böylece hem 3 haftada yayına çıkabileceğiz hem de maliyetleri minimumda tutacağız."
+                "cto_criticism": "CEO'nun önerdiği 'SaaS abonelik modeli' için erken aşamada çok karmaşık bir ödeme altyapısı kurmamız gerekir.",
+                "ceo_criticism": "CTO'nun önerdiği 'Mikroservis mimarisi' MVP aşaması için çok lüks. Basit bir monolit yapıyla başlamalıyız.",
+                "mvp_consensus": "Ortak karar: Projeye PostgreSQL kullanan monolit bir FastAPI yapısıyla başlanacak. Ödeme sistemi olarak karmaşık abonelikler yerine, kullanıcıların sadece kullandıkları kadar ödeyecekleri basit bir entegrasyon kurulacak."
+            },
+            "competitor_report": {
+                "competitors": [
+                    {
+                        "name": "SaaS Starter Kits (ShipFast vb.)",
+                        "weakness": "Sadece hazır şablon kod veriyorlar; projenin özel iş mantığına, sektörüne veya mimari kararlarına göre akıllı analizler veya dinamik öneriler sunmuyorlar.",
+                        "our_advantage": "Yapay zeka motorumuz sayesinde sadece şablon sunmuyoruz, projenin sektörüne, bütçesine ve teknik hedeflerine özel entegre ve dinamik yol haritaları çıkarıyoruz."
+                    },
+                    {
+                        "name": "Standard AI Chatbots (ChatGPT / Claude)",
+                        "weakness": "Herhangi bir yapılandırılmış şema (validation) veya veritabanı cache mekanizması olmadan genel yanıtlar veriyorlar; yazılımcılara derli toplu, indirilebilir PDF raporları ve sekme tabanlı organize yapılar sunamıyorlar.",
+                        "our_advantage": "FastAPI ve Next.js tabanlı optimize arayüzümüzle, birden fazla ajanı birbirleriyle yarıştırarak yapılandırılmış, doğrulanmış ve tamamen indirilebilir profesyonel çıktılar sağlıyoruz."
+                    }
+                ],
+                "positioning_strategy": "Rakiplerimiz sadece şablon veya genel chatbot cevapları sunarken, biz 'Yapay Zeka Destekli Kişiselleştirilmiş Girişim Mimarı' konumlamasıyla, kullanıcılara teknik, ticari ve kullanıcı testi boyutlarını tek bir orkestrasyon paneli üzerinden indirilebilir ve uygulanabilir çıktılar halinde sunan lider platform olmayı hedefliyoruz."
             }
         }
 
@@ -903,7 +938,6 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
     normalized_input = normalize_text(project_title)
     
     try:
-        # Önbellek Kontrolü (Hızlı geçiş için doğrudan sorguyu çalıştırıyoruz)
         lang_instruction = get_language_instruction(lang)
         
         # --- 1. CTO Raporu ---
@@ -926,39 +960,48 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         ceo_data = json.loads(ceo_response.text)
         time.sleep(4.0)
 
-        # --- 3. TARTIŞMA & UZLAŞI AJANI (Yeni Adım) ---
-        debate_prompt = f"""
-        Aşağıda aynı proje için hazırlanan teknik rapor (CTO) ve iş planı (CEO) yer almaktadır:
-        CTO Tasarımı: {cto_response.text}
-        CEO Tasarımı: {ceo_response.text}
-        
-        Görevlerin:
-        1. CTO gözüyle: CEO'nun iş modelini teknik zorluk ve bütçe açısından eleştir.
-        2. CEO gözüyle: CTO'nun mimarisini süre ve pazar hızı (Time-to-market) açısından eleştir.
-        3. Ortak Uzlaşı (MVP Consensus): İki tarafın da kabul edeceği, en hızlı ve kararlı yayına çıkış (MVP) planını yaz.
-        
-        {lang_instruction}
-        """
+        # --- 3. TARTIŞMA & UZLAŞI AJANI ---
+        debate_prompt = f"CTO: {cto_response.text}\nCEO: {ceo_response.text}\nBu raporları teknik ve ticari açıdan karşılıklı eleştir ve nihai MVP uzlaşısını yaz."
         debate_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=debate_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=AgentDebateAnalysis,
-                temperature=0.6
-            ),
+            contents=debate_prompt + f"\n{lang_instruction}",
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=AgentDebateAnalysis, temperature=0.6),
         )
         debate_data = json.loads(debate_response.text)
         time.sleep(4.0)
 
-        # --- 4. Sinerji Özet ---
+        # --- 4. RAKİP ANALİZİ AJANI (Yeni Adım) ---
+        competitor_prompt = f"""
+        Rol: Kıdemli Pazar Araştırması ve Rekabet Analisti.
+        Proje Başlığı: "{project_title}"
+        Sektör: "{sector}"
+        
+        Lütfen bu girişim fikri için pazarda var olan veya olabilecek en güçlü 2 gerçek veya dolaylı rakibi/alternatifi belirle.
+        Her rakibin zayıf noktasını ve bizim bu rakiplere karşı teknik/stratejik olarak nasıl bir fark yaratacağımızı (Haksız Avantaj) listele.
+        Son olarak, bu projenin pazardaki benzersiz konumlandırma stratejisini (Positioning Strategy) özetle.
+        
+        {lang_instruction}
+        """
+        competitor_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=competitor_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=CompetitorAnalysis,
+                temperature=0.7
+            ),
+        )
+        competitor_data = json.loads(competitor_response.text)
+        time.sleep(4.0)
+
+        # --- 5. Sinerji Özet ---
         synergy_prompt = f"CTO: {cto_response.text}, CEO: {ceo_response.text}. Girişimciye en kritik 3 tavsiyeyi yaz. {lang_instruction}"
         synergy_response = client.models.generate_content(
             model='gemini-2.5-flash', contents=synergy_prompt, config=types.GenerateContentConfig(temperature=0.5)
         )
         time.sleep(4.0)
 
-        # --- 5. User Persona ---
+        # --- 6. User Persona ---
         user_prompt = f"Proje: '{project_title}'. Hedef Kitle: '{ceo_data.get('target_audience', '')}'. Bu ürünü kullanır mıydın? Puanla. {lang_instruction}"
         user_response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -973,7 +1016,8 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             "ceo_report": ceo_data,
             "synergy_summary": synergy_response.text,
             "user_test": user_data,
-            "debate_report": debate_data
+            "debate_report": debate_data,
+            "competitor_report": competitor_data
         }
 
     except Exception as e:
