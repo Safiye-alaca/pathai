@@ -55,7 +55,6 @@ interface FinancialAnalysis {
   costs_breakdown: CostItem[];
 }
 
-// [24. GÜN]: Büyüme Analizi Şemaları
 interface GrowthTactics {
   acquisition_channel: string;
   activation_tactic: string;
@@ -68,6 +67,24 @@ interface GrowthAnalysis {
   recommended_tools: string[];
 }
 
+// [25. GÜN]: Hukuki Uyumluluk ve Risk Analizi Şemaları
+interface LegalRequirement {
+  title: string;
+  description: string;
+  risk_level: string;
+}
+
+interface TechnicalRisk {
+  risk_name: string;
+  mitigation_plan: string;
+}
+
+interface LegalAndRiskAnalysis {
+  legal_strategy_title: string;
+  legal_requirements: LegalRequirement[];
+  technical_risks: TechnicalRisk[];
+}
+
 interface MultiAgentData {
   project_title: string;
   cto_report: CTOAnalysis;
@@ -77,7 +94,8 @@ interface MultiAgentData {
   debate_report: AgentDebateAnalysis;
   competitor_report: CompetitorAnalysis;
   financial_report: FinancialAnalysis;
-  growth_report: GrowthAnalysis; // [24. GÜN]
+  growth_report: GrowthAnalysis;
+  legal_report: LegalAndRiskAnalysis; // [25. GÜN]
 }
 
 interface MultiAgentPanelProps {
@@ -89,7 +107,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
   const { language } = useLanguage();
   const [data, setData] = useState<MultiAgentData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "financial" | "growth" | "user" | "synergy" | "full">("cto");
+  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "financial" | "growth" | "legal" | "user" | "synergy" | "full">("cto");
   
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -155,6 +173,14 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
     return "text-rose-600 bg-rose-50 border-rose-100";
   };
 
+  const getRiskBadgeColor = (level: string) => {
+    const l = level.toLowerCase();
+    if (l === "kritik") return "bg-rose-100 text-rose-800 border-rose-200";
+    if (l === "yüksek") return "bg-orange-100 text-orange-800 border-orange-200";
+    if (l === "orta") return "bg-amber-100 text-amber-800 border-amber-200";
+    return "bg-slate-100 text-slate-800 border-slate-200";
+  };
+
   return (
     <div className="bg-white border border-purple-100 rounded-[32px] p-6 shadow-xl space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-purple-50 pb-4">
@@ -163,7 +189,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             <span>🤝</span> Multi-Agent Sinerji Simülasyonu
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Girişiminiz için CTO, CEO, Pazar Analisti, Finans Uzmanı, Growth Hacker ve Sanal Kullanıcı ajanları ortak çalışır.
+            Girişiminiz için CTO, CEO, Pazar, Finans, Growth ve Hukuk/Risk ajanları ortak çalışır.
           </p>
         </div>
         <div className="flex gap-2">
@@ -236,6 +262,14 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               }`}
             >
               📈 Büyüme Planı
+            </button>
+            <button
+              onClick={() => setActiveTab("legal")}
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
+                activeTab === "legal" ? "bg-rose-600 text-white shadow-sm" : "text-rose-950 hover:bg-rose-100/50"
+              }`}
+            >
+              ⚖️ Hukuk & Risk
             </button>
             <button
               onClick={() => setActiveTab("user")}
@@ -438,36 +472,29 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             )}
 
-            {/* [24. GÜN]: Büyüme Stratejisi ve Pazarlama Otomasyonu Paneli */}
+            {/* Büyüme Planı */}
             {(activeTab === "growth" || activeTab === "full") && data.growth_report && (
               <div className="space-y-4 pt-4 border-t border-orange-100">
                 <h3 className="font-black text-orange-950 text-sm border-l-4 border-orange-500 pl-2">📈 Growth Hacking & Organik Büyüme Stratejisi</h3>
                 <div className="space-y-4">
-                  {/* Başlık Kartı */}
                   <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-100 p-4 rounded-2xl">
                     <span className="text-[9px] font-extrabold uppercase text-orange-700 tracking-wider">Tavsiye Edilen Büyüme Stratejisi</span>
                     <h4 className="text-md font-black text-orange-950 mt-0.5">{data.growth_report.growth_strategy_title}</h4>
                   </div>
-
-                  {/* AARRR Huni Kartları */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white p-4 rounded-xl border border-slate-100 space-y-1">
                       <span className="text-[10px] text-orange-700 font-extrabold uppercase block">📣 1. Kullanıcı Edinme (Acquisition)</span>
                       <p className="text-slate-600 font-medium leading-relaxed">{data.growth_report.funnel_tactics.acquisition_channel}</p>
                     </div>
-
                     <div className="bg-white p-4 rounded-xl border border-slate-100 space-y-1">
                       <span className="text-[10px] text-orange-700 font-extrabold uppercase block">⚡ 2. Aktivasyon (Aha Moment)</span>
                       <p className="text-slate-600 font-medium leading-relaxed">{data.growth_report.funnel_tactics.activation_tactic}</p>
                     </div>
-
                     <div className="bg-white p-4 rounded-xl border border-slate-100 space-y-1">
                       <span className="text-[10px] text-orange-700 font-extrabold uppercase block">🔄 3. Viral Çark (Referral Loop)</span>
                       <p className="text-slate-600 font-medium leading-relaxed">{data.growth_report.funnel_tactics.viral_loop}</p>
                     </div>
                   </div>
-
-                  {/* Önerilen Araçlar */}
                   <div className="bg-slate-900 p-4 rounded-2xl text-slate-100 space-y-3">
                     <h4 className="font-extrabold text-[10px] text-orange-400 uppercase tracking-widest flex items-center gap-1.5">
                       <span>🛠️</span> Pazarlama Otomasyonu & Analitik Stack Önerisi
@@ -477,6 +504,59 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
                         <span key={i} className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl font-bold text-xs text-orange-300">
                           {tool}
                         </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* [25. GÜN]: Hukuki Uyumluluk ve Risk Analizi Paneli */}
+            {(activeTab === "legal" || activeTab === "full") && data.legal_report && (
+              <div className="space-y-4 pt-4 border-t border-rose-100">
+                <h3 className="font-black text-rose-950 text-sm border-l-4 border-rose-500 pl-2">⚖️ Hukuki Uyumluluk & Teknik Risk Analizi</h3>
+                <div className="space-y-4">
+                  {/* Başlık Kartı */}
+                  <div className="bg-gradient-to-r from-rose-500/10 to-red-500/10 border border-rose-100 p-4 rounded-2xl">
+                    <span className="text-[9px] font-extrabold uppercase text-rose-700 tracking-wider">Yasal Koruma Kalkanı</span>
+                    <h4 className="text-md font-black text-rose-950 mt-0.5">{data.legal_report.legal_strategy_title}</h4>
+                  </div>
+
+                  {/* Yasal Zorunluluklar ve Teknik Riskler */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Yasal Gereksinimler */}
+                    <div className="space-y-3">
+                      <h4 className="font-bold text-slate-950 text-xs flex items-center gap-1">
+                        <span>📜</span> KVKK / GDPR ve Sözleşme Zorunlulukları
+                      </h4>
+                      {data.legal_report.legal_requirements.map((req, i) => (
+                        <div key={i} className="bg-white border border-slate-100 p-4 rounded-xl space-y-2">
+                          <div className="flex justify-between items-center">
+                            <h5 className="font-bold text-slate-900 text-xs">{req.title}</h5>
+                            <span className={`px-2 py-0.5 text-[8px] border font-extrabold rounded-full uppercase ${getRiskBadgeColor(req.risk_level)}`}>
+                              Ceza Riski: {req.risk_level}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 leading-relaxed font-medium">{req.description}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Teknik Risk Azaltma Planları */}
+                    <div className="space-y-3">
+                      <h4 className="font-bold text-slate-950 text-xs flex items-center gap-1">
+                        <span>🛡️</span> Kritik Teknik Risk Azaltma (Mitigation)
+                      </h4>
+                      {data.legal_report.technical_risks.map((risk, i) => (
+                        <div key={i} className="bg-white border border-slate-100 p-4 rounded-xl space-y-2">
+                          <h5 className="font-bold text-rose-950 text-xs flex items-center gap-1">
+                            <span className="text-rose-500">⚠️</span> {risk.risk_name}
+                          </h5>
+                          <div className="bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100/50 space-y-0.5">
+                            <span className="text-[9px] text-emerald-800 font-bold block">💡 Çözüm & Risk Azaltma Planı:</span>
+                            <p className="text-emerald-950 font-medium leading-relaxed">{risk.mitigation_plan}</p>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>

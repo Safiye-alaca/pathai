@@ -171,6 +171,34 @@ class MultiAgentOrchestratorResponse(BaseModel):
     financial_report: FinancialAnalysis
     growth_report: GrowthAnalysis # [24. GÜN]: Yeni eklenen büyüme analizi alanı
 
+# [25. GÜN]: Hukuki Uyumluluk ve Risk Analizi Şemaları
+class LegalRequirement(BaseModel):
+    title: str = Field(description="Yasal zorunluluk başlığı (Örn: KVKK Açık Rıza Metni, GDPR Çerez Politikası)")
+    description: str = Field(description="Bu zorunluluğun detaylı açıklaması ve projede nasıl uygulanması gerektiği")
+    risk_level: str = Field(description="Bu yasal zorunluluğun yerine getirilmemesi durumundaki ceza/risk seviyesi (Düşük, Orta, Yüksek, Kritik)")
+
+class TechnicalRisk(BaseModel):
+    risk_name: str = Field(description="Teknik riskin adı (Örn: API Bağımlılığı, Veri Tabanı Sızıntısı, Tek Nokta Hatası - SPOF)")
+    mitigation_plan: str = Field(description="Bu teknik riskin etkilerini azaltmak veya tamamen ortadan kaldırmak için alınacak teknik önlem")
+
+class LegalAndRiskAnalysis(BaseModel):
+    legal_strategy_title: str = Field(description="Projeye özel hazırlanan yasal koruma kalkanı stratejisinin adı")
+    legal_requirements: List[LegalRequirement] = Field(description="Projenin uyması gereken en kritik 2 yasal zorunluluk")
+    technical_risks: List[TechnicalRisk] = Field(description="Projeyi bekleyen en kritik 2 teknik risk ve çözüm planı")
+
+# Ana yanıt modeline bu yeni yasal/risk analiz katmanını da dahil ediyoruz
+class MultiAgentOrchestratorResponse(BaseModel):
+    project_title: str
+    cto_report: CTOAnalysis
+    ceo_report: CEOAnalysis
+    synergy_summary: str
+    user_test: UserPersonaAnalysis
+    debate_report: AgentDebateAnalysis
+    competitor_report: CompetitorAnalysis
+    financial_report: FinancialAnalysis
+    growth_report: GrowthAnalysis
+    legal_report: LegalAndRiskAnalysis # [25. GÜN]: Yeni eklenen yasal ve risk analizi alanı
+
 # [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
 class MultiAgentHistory(Base):
     __tablename__ = "multi_agent_history"
@@ -936,7 +964,7 @@ MOCK_MODE = True
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
     # 🚨 MOCK MODU AKTİFSE GEMINI'A GİTME, ANINDA YENİ TEST VERİSİ DÖN
     if MOCK_MODE:
-        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Büyüme öngörülü test verisi üretiliyor...")
+        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Yasal risk analizli test verisi üretiliyor...")
         return {
             "project_title": project_title,
             "cto_report": {
@@ -958,8 +986,8 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
                 "adoption_score": 85
             },
             "debate_report": {
-                "cto_criticism": "CEO'nun önerdiği 'SaaS abonelik modeli' teknik olarak karmaşık. İlk aşamada tekil ödemelerle ilerleyelim.",
-                "ceo_criticism": "CTO'nun mikroservis mimarisi MVP aşaması için lüks. Monolitle çıkmalıyız.",
+                "cto_criticism": "CEO'nun SaaS modeli için karmaşık ödeme altyapısı kurmamız gerekir.",
+                "ceo_criticism": "CTO'nun mikroservis tasarımı MVP aşaması için lüks.",
                 "mvp_consensus": "Ortak karar: PostgreSQL kullanan monolit bir FastAPI yapısıyla başlanacak. Ödeme sistemi olarak basit bir kullandığın kadar öde modeli kurulacak."
             },
             "competitor_report": {
@@ -970,7 +998,7 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
                         "our_advantage": "Projenin bütçesine ve teknik hedeflerine özel dinamik yol haritaları çıkarıyoruz."
                     }
                 ],
-                "positioning_strategy": "Rakiplerimiz sadece şablon sunarken, biz orkestrasyon paneli üzerinden entegre analizler veren lider platformuz."
+                "positioning_strategy": "Rakiplerimiz sadece şablon sunurken, biz orkestrasyon paneli üzerinden entegre analizler veren lider platformuz."
             },
             "financial_report": {
                 "initial_mvp_cost": 500.0,
@@ -984,11 +1012,36 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             "growth_report": {
                 "growth_strategy_title": "Product-Led Loop (Ürün Odaklı Büyüme Çarkı)",
                 "funnel_tactics": {
-                    "acquisition_channel": "Build-in-Public (Açık Kaynak Geliştirme): Geliştirme sürecindeki teknik zorlukları ve başarıları Twitter/X ve LinkedIn üzerinden teknik makalelerle paylaşarak organik yazılımcı kitlesini çekmek.",
-                    "activation_tactic": "Interactive First Simulation: Kullanıcının üye olmadan önce sadece proje başlığı girerek 10 saniye içinde ilk mini raporu almasını sağlamak (Sihirli 'Aha!' Anı).",
-                    "viral_loop": "Shareable Report & Reward: Üretilen analiz raporlarını sosyal medyada paylaşılabilir şık bir web linki haline getirmek ve paylaşılan her rapor için kullanıcıya 5 adet ücretsiz derin analiz kredisi tanımlamak."
+                    "acquisition_channel": "Build-in-Public (Açık Kaynak Geliştirme): Geliştirme sürecini Twitter/X ve LinkedIn üzerinden teknik makalelerle paylaşmak.",
+                    "activation_tactic": "Interactive First Simulation: Kullanıcının üye olmadan proje başlığı girerek mini rapor alması.",
+                    "viral_loop": "Shareable Report & Reward: Üretilen raporları sosyal medyada paylaşılabilir şık bir web linki haline getirmek."
                 },
-                "recommended_tools": ["Mixpanel (Kullanıcı davranış analizi)", "Loops.so (SaaS e-posta otomasyonu)", "Segment (Veri toplama entegrasyonu)"]
+                "recommended_tools": ["Mixpanel", "Loops.so", "Segment"]
+            },
+            "legal_report": {
+                "legal_strategy_title": "Compliance Shield (Yasal ve Teknik Güvence Kalkanı)",
+                "legal_requirements": [
+                    {
+                        "title": "KVKK / GDPR Açık Rıza ve Çerez Aydınlatma Metni",
+                        "description": "Kullanıcıların proje fikirleri, e-posta adresleri veya IP adresleri gibi kişisel verilerini saklamadan önce onay kutucukları (opt-in checkbox) ve aydınlatma metinleri sunulmalıdır. Veri işleme faaliyetleri açıkça belirtilmelidir.",
+                        "risk_level": "Kritik"
+                    },
+                    {
+                        "title": "AI Sorumluluk Reddi Beyanı (Terms of Service - Disclaimers)",
+                        "description": "Yapay zeka modellerinin ürettiği raporlar veya tavsiyeler yüzünden oluşabilecek teknik, mali veya stratejik hatalardan platformun sorumlu tutulamayacağını belirten yasal bir sorumluluk muafiyeti maddesi sözleşmeye eklenmelidir.",
+                        "risk_level": "Yüksek"
+                    }
+                ],
+                "technical_risks": [
+                    {
+                        "risk_name": "API Bağımlılığı ve Hizmet Kesintisi (SPOF - Single Point of Failure)",
+                        "mitigation_plan": "Projenin tamamen harici bir API'ye (OpenAI/Gemini) bağımlı olması riskine karşı, backend'e dün yazdığımız akıllı hata yakalama (Fallback) ve statik önbellek (Semantic Cache) mekanizmaları kusursuz şekilde devrede tutulmalıdır."
+                    },
+                    {
+                        "risk_name": "SQL Injection ve Veri Güvenliği Açıkları",
+                        "mitigation_plan": "ORM (SQLAlchemy) kullanımı zorunlu tutulmalı, kullanıcı girdileri Pydantic şemaları ile sıkı doğrulama (validation) süreçlerinden geçirilerek ham SQL sorgusu çalıştırılması engellenmelidir."
+                    }
+                ]
             }
         }
 
@@ -1049,41 +1102,50 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         financial_data = json.loads(financial_response.text)
         time.sleep(4.0)
 
-        # --- 6. BÜYÜME VE PAZARLAMA AJANI (Yeni Adım) ---
-        growth_prompt = f"""
-        Rol: Silikon Vadisi düzeyinde Growth Hacker ve Pazarlama Otomasyonu Uzmanı.
-        Proje Başlığı: "{project_title}"
-        Hedef Kitle (CEO): {ceo_data.get('target_audience', '')}
-        
-        Lütfen bu girişimin bütçesini tüketmeden, organik ve viral olarak büyümesini sağlayacak büyüme stratejilerini ve AARRR hunisini kurgula:
-        1. Büyüme stratejisinin akılda kalıcı adı (growth_strategy_title).
-        2. Organik kullanıcı edinme kanalını (acquisition_channel).
-        3. Kullanıcıya 'Aha!' anını yaşatacak aktivasyon taktiğini (activation_tactic).
-        4. Viral yayılım sağlayacak referans/davet döngüsünü (viral_loop).
-        5. Bu süreçleri takip etmek ve otomatize etmek için önerilen 3 adet modern SaaS aracını (recommended_tools).
-        
-        {lang_instruction}
-        """
+        # --- 6. BÜYÜME VE PAZARLAMA AJANI ---
+        growth_prompt = f"Proje: '{project_title}'. Hedef Kitle: {ceo_data.get('target_audience', '')}. Büyüme ve viral döngü stratejilerini kur."
         growth_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=growth_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=GrowthAnalysis,
-                temperature=0.6
-            ),
+            contents=growth_prompt + f"\n{lang_instruction}",
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=GrowthAnalysis, temperature=0.6),
         )
         growth_data = json.loads(growth_response.text)
         time.sleep(4.0)
 
-        # --- 7. Sinerji Özet ---
+        # --- 7. HUKUKİ UYUMLULUK VE RİSK AJANI (Yeni Adım) ---
+        legal_prompt = f"""
+        Rol: Hem bilişim hukuku (KVKK/GDPR) konusunda uzman bir Baş Hukuk Müşaviri hem de tecrübeli bir Teknik Risk Analisti.
+        Proje Başlığı: "{project_title}"
+        Teknik Mimari (CTO): {cto_response.text}
+        İş Geliştirme (CEO): {ceo_response.text}
+        
+        Lütfen bu girişimin hem yasal (bilişim hukuku) hem de teknik/operasyonel risk analizini yap:
+        1. Bu projeye özel hazırlanan yasal güvence kalkanının adı (legal_strategy_title).
+        2. Projenin kesinlikle uyması gereken 2 yasal zorunluluğu (legal_requirements listesinde başlık, açıklama ve risk_level ile).
+        3. Projenin karşılaşabileceği en kritik 2 teknik risk ve bunları azaltma planını (technical_risks listesinde risk_name ve mitigation_plan ile).
+        
+        {lang_instruction}
+        """
+        legal_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=legal_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=LegalAndRiskAnalysis,
+                temperature=0.5
+            ),
+        )
+        legal_data = json.loads(legal_response.text)
+        time.sleep(4.0)
+
+        # --- 8. Sinerji Özet ---
         synergy_prompt = f"CTO: {cto_response.text}, CEO: {ceo_response.text}. Girişimciye en kritik 3 tavsiyeyi yaz. {lang_instruction}"
         synergy_response = client.models.generate_content(
             model='gemini-2.5-flash', contents=synergy_prompt, config=types.GenerateContentConfig(temperature=0.5)
         )
         time.sleep(4.0)
 
-        # --- 8. User Persona ---
+        # --- 9. User Persona ---
         user_prompt = f"Proje: '{project_title}'. Hedef Kitle: '{ceo_data.get('target_audience', '')}'. Bu ürünü kullanır mıydın? Puanla. {lang_instruction}"
         user_response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -1101,7 +1163,8 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             "debate_report": debate_data,
             "competitor_report": competitor_data,
             "financial_report": financial_data,
-            "growth_report": growth_data
+            "growth_report": growth_data,
+            "legal_report": legal_data
         }
 
     except Exception as e:
