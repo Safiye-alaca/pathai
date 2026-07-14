@@ -125,6 +125,29 @@ class MultiAgentOrchestratorResponse(BaseModel):
     debate_report: AgentDebateAnalysis
     competitor_report: CompetitorAnalysis # [22. GÜN]: Yeni eklenen rakip analizi alanı
 
+# [23. GÜN]: Finansal Öngörü ve Bütçeleme Şemaları
+class CostItem(BaseModel):
+    name: str = Field(description="Maliyet kaleminin adı (örneğin: Sunucu, API, Pazarlama, Veritabanı)")
+    amount: float = Field(description="Aylık veya tek seferlik tahmini tutar (USD veya TRY cinsinden)")
+    is_recurring: bool = Field(description="Bu gider her ay tekrarlanıyor mu (True) yoksa tek seferlik mi (False)")
+
+class FinancialAnalysis(BaseModel):
+    initial_mvp_cost: float = Field(description="Ürünün MVP (minimum uygulanabilir ürün) aşamasına gelmesi için gereken tahmini tek seferlik kurulum bütçesi")
+    monthly_burn_rate: float = Field(description="Aylık toplam sabit ve değişken operasyonel gider (sunucu, API limitleri vb.)")
+    break_even_months: int = Field(description="Girişimin geliriyle giderini eşitleyip kâra geçeceği tahmini süre (Ay cinsinden)")
+    costs_breakdown: List[CostItem] = Field(description="En kritik bütçe ve maliyet kalemlerinin listesi")
+
+# Ana yanıt modeline bu yeni finansal analiz katmanını da dahil ediyoruz
+class MultiAgentOrchestratorResponse(BaseModel):
+    project_title: str
+    cto_report: CTOAnalysis
+    ceo_report: CEOAnalysis
+    synergy_summary: str
+    user_test: UserPersonaAnalysis
+    debate_report: AgentDebateAnalysis
+    competitor_report: CompetitorAnalysis
+    financial_report: FinancialAnalysis # [23. GÜN]: Yeni eklenen finansal analiz alanı
+
 # [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
 class MultiAgentHistory(Base):
     __tablename__ = "multi_agent_history"
@@ -890,7 +913,7 @@ MOCK_MODE = True
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
     # 🚨 MOCK MODU AKTİFSE GEMINI'A GİTME, ANINDA YENİ TEST VERİSİ DÖN
     if MOCK_MODE:
-        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Rakip analizli test verisi üretiliyor...")
+        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Finansal öngörülü test verisi üretiliyor...")
         return {
             "project_title": project_title,
             "cto_report": {
@@ -922,14 +945,36 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
                         "name": "SaaS Starter Kits (ShipFast vb.)",
                         "weakness": "Sadece hazır şablon kod veriyorlar; projenin özel iş mantığına, sektörüne veya mimari kararlarına göre akıllı analizler veya dinamik öneriler sunmuyorlar.",
                         "our_advantage": "Yapay zeka motorumuz sayesinde sadece şablon sunmuyoruz, projenin sektörüne, bütçesine ve teknik hedeflerine özel entegre ve dinamik yol haritaları çıkarıyoruz."
-                    },
-                    {
-                        "name": "Standard AI Chatbots (ChatGPT / Claude)",
-                        "weakness": "Herhangi bir yapılandırılmış şema (validation) veya veritabanı cache mekanizması olmadan genel yanıtlar veriyorlar; yazılımcılara derli toplu, indirilebilir PDF raporları ve sekme tabanlı organize yapılar sunamıyorlar.",
-                        "our_advantage": "FastAPI ve Next.js tabanlı optimize arayüzümüzle, birden fazla ajanı birbirleriyle yarıştırarak yapılandırılmış, doğrulanmış ve tamamen indirilebilir profesyonel çıktılar sağlıyoruz."
                     }
                 ],
-                "positioning_strategy": "Rakiplerimiz sadece şablon veya genel chatbot cevapları sunarken, biz 'Yapay Zeka Destekli Kişiselleştirilmiş Girişim Mimarı' konumlamasıyla, kullanıcılara teknik, ticari ve kullanıcı testi boyutlarını tek bir orkestrasyon paneli üzerinden indirilebilir ve uygulanabilir çıktılar halinde sunan lider platform olmayı hedefliyoruz."
+                "positioning_strategy": "Rakiplerimiz sadece şablon veya genel chatbot cevapları sunarken, biz 'Yapay Zeka Destekli Kişiselleştirilmiş Girişim Mimarı' konumlamasıyla pazar lideri olmayı hedefliyoruz."
+            },
+            "financial_report": {
+                "initial_mvp_cost": 500.0,
+                "monthly_burn_rate": 80.0,
+                "break_even_months": 6,
+                "costs_breakdown": [
+                    {
+                        "name": "Alan Adı & SSL (İlk Kurulum)",
+                        "amount": 20.0,
+                        "is_recurring": False
+                    },
+                    {
+                        "name": "Yapay Zeka API Kullanımı (Aylık Tahmini)",
+                        "amount": 40.0,
+                        "is_recurring": True
+                    },
+                    {
+                        "name": "Vercel / AWS Sunucu Barındırma (Aylık)",
+                        "amount": 20.0,
+                        "is_recurring": True
+                    },
+                    {
+                        "name": "Pazarlama & Sosyal Medya Reklamları (Aylık)",
+                        "amount": 20.0,
+                        "is_recurring": True
+                    }
+                ]
             }
         }
 
@@ -970,38 +1015,51 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         debate_data = json.loads(debate_response.text)
         time.sleep(4.0)
 
-        # --- 4. RAKİP ANALİZİ AJANI (Yeni Adım) ---
-        competitor_prompt = f"""
-        Rol: Kıdemli Pazar Araştırması ve Rekabet Analisti.
-        Proje Başlığı: "{project_title}"
-        Sektör: "{sector}"
-        
-        Lütfen bu girişim fikri için pazarda var olan veya olabilecek en güçlü 2 gerçek veya dolaylı rakibi/alternatifi belirle.
-        Her rakibin zayıf noktasını ve bizim bu rakiplere karşı teknik/stratejik olarak nasıl bir fark yaratacağımızı (Haksız Avantaj) listele.
-        Son olarak, bu projenin pazardaki benzersiz konumlandırma stratejisini (Positioning Strategy) özetle.
-        
-        {lang_instruction}
-        """
+        # --- 4. RAKİP ANALİZİ AJANI ---
+        competitor_prompt = f"Proje: '{project_title}'. Sektör: '{sector}'. Rakipleri analiz et ve konumlandırma stratejisini çıkar."
         competitor_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=competitor_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=CompetitorAnalysis,
-                temperature=0.7
-            ),
+            contents=competitor_prompt + f"\n{lang_instruction}",
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=CompetitorAnalysis, temperature=0.7),
         )
         competitor_data = json.loads(competitor_response.text)
         time.sleep(4.0)
 
-        # --- 5. Sinerji Özet ---
+        # --- 5. FİNANSAL ANALİZ AJANI (Yeni Adım) ---
+        financial_prompt = f"""
+        Rol: Tecrübeli Finans Direktörü ve Girişim Bütçeleme Danışmanı.
+        Proje Başlığı: "{project_title}"
+        Teknik Mimari (CTO): {cto_response.text}
+        İş Geliştirme (CEO): {ceo_response.text}
+        
+        Lütfen bu girişimin bütçesini ve maliyet kalemlerini gerçekçi bir erken aşama yazılım projesi olarak hesapla:
+        1. MVP'yi hayata geçirmek için gereken tahmini ilk kurulum maliyeti (initial_mvp_cost - USD bazlı).
+        2. Aylık sabit ve değişken operasyon maliyeti (monthly_burn_rate - USD bazlı).
+        3. Projenin kaçıncı ayda gelir-gider dengesini yakalayacağı (break_even_months).
+        4. Sunucu, API, veritabanı, domain, pazarlama gibi en kritik maliyetleri costs_breakdown listesinde is_recurring (aylık düzenli mi tek seferlik mi) belirterek çıkar.
+        
+        {lang_instruction}
+        """
+        financial_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=financial_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=FinancialAnalysis,
+                temperature=0.5
+            ),
+        )
+        financial_data = json.loads(financial_response.text)
+        time.sleep(4.0)
+
+        # --- 6. Sinerji Özet ---
         synergy_prompt = f"CTO: {cto_response.text}, CEO: {ceo_response.text}. Girişimciye en kritik 3 tavsiyeyi yaz. {lang_instruction}"
         synergy_response = client.models.generate_content(
             model='gemini-2.5-flash', contents=synergy_prompt, config=types.GenerateContentConfig(temperature=0.5)
         )
         time.sleep(4.0)
 
-        # --- 6. User Persona ---
+        # --- 7. User Persona ---
         user_prompt = f"Proje: '{project_title}'. Hedef Kitle: '{ceo_data.get('target_audience', '')}'. Bu ürünü kullanır mıydın? Puanla. {lang_instruction}"
         user_response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -1017,7 +1075,8 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             "synergy_summary": synergy_response.text,
             "user_test": user_data,
             "debate_report": debate_data,
-            "competitor_report": competitor_data
+            "competitor_report": competitor_data,
+            "financial_report": financial_data
         }
 
     except Exception as e:
