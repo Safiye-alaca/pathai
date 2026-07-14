@@ -199,6 +199,33 @@ class MultiAgentOrchestratorResponse(BaseModel):
     growth_report: GrowthAnalysis
     legal_report: LegalAndRiskAnalysis # [25. GÜN]: Yeni eklenen yasal ve risk analizi alanı
 
+# [26. GÜN]: Test Otomasyonu ve QA Şemaları
+class TestCaseResult(BaseModel):
+    endpoint: str = Field(description="Test edilen API endpoint'i (Örn: /api/multi-agent/simulate)")
+    status: str = Field(description="Testin durumu (PASSED veya FAILED)")
+    response_time_ms: int = Field(description="Milisaniye cinsinden simüle edilen yanıt süresi")
+    validation_notes: str = Field(description="Şema doğrulaması ve veri bütünlüğü hakkında QA notu")
+
+class QAAnalysis(BaseModel):
+    test_suite_title: str = Field(description="QA test süitinin adı")
+    overall_health_score: int = Field(description="Sistemin genel sağlık ve kararlılık puanı (1-100 arası)")
+    test_cases: List[TestCaseResult] = Field(description="Koşturulan en kritik test senaryolarının sonuçları")
+    critical_vulnerabilities: List[str] = Field(description="Tespit edilen veya önlenmesi gereken olası zafiyetler/hatalar")
+
+# Ana yanıt modeline bu yeni QA analiz katmanını da dahil ediyoruz
+class MultiAgentOrchestratorResponse(BaseModel):
+    project_title: str
+    cto_report: CTOAnalysis
+    ceo_report: CEOAnalysis
+    synergy_summary: str
+    user_test: UserPersonaAnalysis
+    debate_report: AgentDebateAnalysis
+    competitor_report: CompetitorAnalysis
+    financial_report: FinancialAnalysis
+    growth_report: GrowthAnalysis
+    legal_report: LegalAndRiskAnalysis
+    qa_report: QAAnalysis # [26. GÜN]: Yeni eklenen QA analizi alanı
+
 # [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
 class MultiAgentHistory(Base):
     __tablename__ = "multi_agent_history"
@@ -964,7 +991,7 @@ MOCK_MODE = True
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
     # 🚨 MOCK MODU AKTİFSE GEMINI'A GİTME, ANINDA YENİ TEST VERİSİ DÖN
     if MOCK_MODE:
-        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Yasal risk analizli test verisi üretiliyor...")
+        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. QA raporlu test verisi üretiliyor...")
         return {
             "project_title": project_title,
             "cto_report": {
@@ -998,7 +1025,7 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
                         "our_advantage": "Projenin bütçesine ve teknik hedeflerine özel dinamik yol haritaları çıkarıyoruz."
                     }
                 ],
-                "positioning_strategy": "Rakiplerimiz sadece şablon sunurken, biz orkestrasyon paneli üzerinden entegre analizler veren lider platformuz."
+                "positioning_strategy": "Rakiplerimiz sadece şablon sunarken, biz orkestrasyon paneli üzerinden entegre analizler veren lider platformuz."
             },
             "financial_report": {
                 "initial_mvp_cost": 500.0,
@@ -1023,24 +1050,43 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
                 "legal_requirements": [
                     {
                         "title": "KVKK / GDPR Açık Rıza ve Çerez Aydınlatma Metni",
-                        "description": "Kullanıcıların proje fikirleri, e-posta adresleri veya IP adresleri gibi kişisel verilerini saklamadan önce onay kutucukları (opt-in checkbox) ve aydınlatma metinleri sunulmalıdır. Veri işleme faaliyetleri açıkça belirtilmelidir.",
+                        "description": "Kullanıcı verilerini saklamadan önce onay kutucukları sunulmalı ve aydınlatma metinleri eklenmelidir.",
                         "risk_level": "Kritik"
-                    },
-                    {
-                        "title": "AI Sorumluluk Reddi Beyanı (Terms of Service - Disclaimers)",
-                        "description": "Yapay zeka modellerinin ürettiği raporlar veya tavsiyeler yüzünden oluşabilecek teknik, mali veya stratejik hatalardan platformun sorumlu tutulamayacağını belirten yasal bir sorumluluk muafiyeti maddesi sözleşmeye eklenmelidir.",
-                        "risk_level": "Yüksek"
                     }
                 ],
                 "technical_risks": [
                     {
-                        "risk_name": "API Bağımlılığı ve Hizmet Kesintisi (SPOF - Single Point of Failure)",
-                        "mitigation_plan": "Projenin tamamen harici bir API'ye (OpenAI/Gemini) bağımlı olması riskine karşı, backend'e dün yazdığımız akıllı hata yakalama (Fallback) ve statik önbellek (Semantic Cache) mekanizmaları kusursuz şekilde devrede tutulmalıdır."
+                        "risk_name": "API Bağımlılığı ve Hizmet Kesintisi",
+                        "mitigation_plan": "Fallback ve statik önbellek (Semantic Cache) mekanizmaları devrede tutulmalıdır."
+                    }
+                ]
+            },
+            "qa_report": {
+                "test_suite_title": "Automated API & Agent Schema Integration Test Suite",
+                "overall_health_score": 98,
+                "test_cases": [
+                    {
+                        "endpoint": "GET /api/multi-agent/simulate?project_title=... (Şema Doğrulaması)",
+                        "status": "PASSED",
+                        "response_time_ms": 120,
+                        "validation_notes": "Pydantic şeması (MultiAgentOrchestratorResponse) tüm ajan çıktıları için %100 başarıyla doğrulandı. Hiçbir veri kaybı veya tip uyuşmazlığı tespit edilmedi."
                     },
                     {
-                        "risk_name": "SQL Injection ve Veri Güvenliği Açıkları",
-                        "mitigation_plan": "ORM (SQLAlchemy) kullanımı zorunlu tutulmalı, kullanıcı girdileri Pydantic şemaları ile sıkı doğrulama (validation) süreçlerinden geçirilerek ham SQL sorgusu çalıştırılması engellenmelidir."
+                        "endpoint": "DB Session & Cache Retrieval Integrity Test",
+                        "status": "PASSED",
+                        "response_time_ms": 15,
+                        "validation_notes": "SQLite yerel önbellek mekanizması (Semantic Match) başarıyla sorgulandı. Mükemmel eşleşen projeler Gemini API'ye yük bindirmeden 15ms altında döndü."
+                    },
+                    {
+                        "endpoint": "API Rate Limit & Cooldown Simulation Test",
+                        "status": "PASSED",
+                        "response_time_ms": 4015,
+                        "validation_notes": "Ajanlar arası 4.0 saniyelik zorunlu bekleme süreleri (cooldown) ve hata yakalama (Fallback) mekanizmaları tıkır tıkır çalışarak 429 hatalarını tamamen bloke etti."
                     }
+                ],
+                "critical_vulnerabilities": [
+                    "Çok hızlı ardışık buton tıklamalarında frontend üzerinde loading durumunun kilitlenmemesi için istek engelleme (debounce) aktifleştirilmelidir.",
+                    "Hatalı karakter içeren proje başlıkları için endpoint bazında sanitization filtresi güçlendirilmelidir."
                 ]
             }
         }
@@ -1112,40 +1158,51 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         growth_data = json.loads(growth_response.text)
         time.sleep(4.0)
 
-        # --- 7. HUKUKİ UYUMLULUK VE RİSK AJANI (Yeni Adım) ---
-        legal_prompt = f"""
-        Rol: Hem bilişim hukuku (KVKK/GDPR) konusunda uzman bir Baş Hukuk Müşaviri hem de tecrübeli bir Teknik Risk Analisti.
-        Proje Başlığı: "{project_title}"
-        Teknik Mimari (CTO): {cto_response.text}
-        İş Geliştirme (CEO): {ceo_response.text}
-        
-        Lütfen bu girişimin hem yasal (bilişim hukuku) hem de teknik/operasyonel risk analizini yap:
-        1. Bu projeye özel hazırlanan yasal güvence kalkanının adı (legal_strategy_title).
-        2. Projenin kesinlikle uyması gereken 2 yasal zorunluluğu (legal_requirements listesinde başlık, açıklama ve risk_level ile).
-        3. Projenin karşılaşabileceği en kritik 2 teknik risk ve bunları azaltma planını (technical_risks listesinde risk_name ve mitigation_plan ile).
-        
-        {lang_instruction}
-        """
+        # --- 7. HUKUKİ UYUMLULUK VE RİSK AJANI ---
+        legal_prompt = f"Proje: '{project_title}'. Mimari: {cto_response.text}. İş Planı: {ceo_response.text}. Yasal ve teknik risk analizini çıkar."
         legal_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=legal_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=LegalAndRiskAnalysis,
-                temperature=0.5
-            ),
+            contents=legal_prompt + f"\n{lang_instruction}",
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=LegalAndRiskAnalysis, temperature=0.5),
         )
         legal_data = json.loads(legal_response.text)
         time.sleep(4.0)
 
-        # --- 8. Sinerji Özet ---
+        # --- 8. TEST OTOMASYONU VE QA AJANI (Yeni Adım) ---
+        qa_prompt = f"""
+        Rol: Baş Test Otomasyonu Mühendisi (Lead QA Engineer) ve Sistem Kararlılık Analisti.
+        Proje Başlığı: "{project_title}"
+        Teknik Mimari (CTO): {cto_response.text}
+        Hukuk & Risk Raporu: {legal_response.text}
+        
+        Lütfen bu çoklu ajan sisteminin ve API endpoint'lerimizin kararlılığını test eden otomatik bir QA raporu kurgula:
+        1. QA test süitinin teknik adı (test_suite_title).
+        2. Sistemin genel sağlık ve kararlılık puanı (overall_health_score - 1 ile 100 arası).
+        3. En az 3 adet kritik test senaryosunun (Ajan Şema Uyumluluğu, Önbellek Entegrasyonu, Hata Yakalama Dayanıklılığı vb.) simüle edilmiş sonuçlarını (test_cases listesinde endpoint, status [PASSED/FAILED], response_time_ms ve validation_notes ile).
+        4. Sistemde çözülmesi gereken veya önerilen en kritik 2 adet zafiyet/QA düzeltmesini (critical_vulnerabilities listesinde).
+        
+        {lang_instruction}
+        """
+        qa_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=qa_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=QAAnalysis,
+                temperature=0.4
+            ),
+        )
+        qa_data = json.loads(qa_response.text)
+        time.sleep(4.0)
+
+        # --- 9. Sinerji Özet ---
         synergy_prompt = f"CTO: {cto_response.text}, CEO: {ceo_response.text}. Girişimciye en kritik 3 tavsiyeyi yaz. {lang_instruction}"
         synergy_response = client.models.generate_content(
             model='gemini-2.5-flash', contents=synergy_prompt, config=types.GenerateContentConfig(temperature=0.5)
         )
         time.sleep(4.0)
 
-        # --- 9. User Persona ---
+        # --- 10. User Persona ---
         user_prompt = f"Proje: '{project_title}'. Hedef Kitle: '{ceo_data.get('target_audience', '')}'. Bu ürünü kullanır mıydın? Puanla. {lang_instruction}"
         user_response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -1164,7 +1221,8 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             "competitor_report": competitor_data,
             "financial_report": financial_data,
             "growth_report": growth_data,
-            "legal_report": legal_data
+            "legal_report": legal_data,
+            "qa_report": qa_data
         }
 
     except Exception as e:

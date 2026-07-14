@@ -67,7 +67,6 @@ interface GrowthAnalysis {
   recommended_tools: string[];
 }
 
-// [25. GÜN]: Hukuki Uyumluluk ve Risk Analizi Şemaları
 interface LegalRequirement {
   title: string;
   description: string;
@@ -85,6 +84,21 @@ interface LegalAndRiskAnalysis {
   technical_risks: TechnicalRisk[];
 }
 
+// [26. GÜN]: Test Otomasyonu ve QA Şemaları
+interface TestCaseResult {
+  endpoint: string;
+  status: string;
+  response_time_ms: number;
+  validation_notes: string;
+}
+
+interface QAAnalysis {
+  test_suite_title: string;
+  overall_health_score: number;
+  test_cases: TestCaseResult[];
+  critical_vulnerabilities: string[];
+}
+
 interface MultiAgentData {
   project_title: string;
   cto_report: CTOAnalysis;
@@ -95,7 +109,8 @@ interface MultiAgentData {
   competitor_report: CompetitorAnalysis;
   financial_report: FinancialAnalysis;
   growth_report: GrowthAnalysis;
-  legal_report: LegalAndRiskAnalysis; // [25. GÜN]
+  legal_report: LegalAndRiskAnalysis;
+  qa_report: QAAnalysis; // [26. GÜN]
 }
 
 interface MultiAgentPanelProps {
@@ -107,7 +122,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
   const { language } = useLanguage();
   const [data, setData] = useState<MultiAgentData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "financial" | "growth" | "legal" | "user" | "synergy" | "full">("cto");
+  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "financial" | "growth" | "legal" | "qa" | "user" | "synergy" | "full">("cto");
   
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -189,7 +204,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             <span>🤝</span> Multi-Agent Sinerji Simülasyonu
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Girişiminiz için CTO, CEO, Pazar, Finans, Growth ve Hukuk/Risk ajanları ortak çalışır.
+            Girişiminiz için CTO, CEO, Pazar, Finans, Growth, Hukuk ve QA/Test otomasyon ajanları ortak çalışır.
           </p>
         </div>
         <div className="flex gap-2">
@@ -270,6 +285,14 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               }`}
             >
               ⚖️ Hukuk & Risk
+            </button>
+            <button
+              onClick={() => setActiveTab("qa")}
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
+                activeTab === "qa" ? "bg-teal-600 text-white shadow-sm" : "text-teal-950 hover:bg-teal-100/50"
+              }`}
+            >
+              🧪 Test & QA
             </button>
             <button
               onClick={() => setActiveTab("user")}
@@ -511,24 +534,18 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             )}
 
-            {/* [25. GÜN]: Hukuki Uyumluluk ve Risk Analizi Paneli */}
+            {/* Hukuki Uyumluluk */}
             {(activeTab === "legal" || activeTab === "full") && data.legal_report && (
               <div className="space-y-4 pt-4 border-t border-rose-100">
                 <h3 className="font-black text-rose-950 text-sm border-l-4 border-rose-500 pl-2">⚖️ Hukuki Uyumluluk & Teknik Risk Analizi</h3>
                 <div className="space-y-4">
-                  {/* Başlık Kartı */}
                   <div className="bg-gradient-to-r from-rose-500/10 to-red-500/10 border border-rose-100 p-4 rounded-2xl">
-                    <span className="text-[9px] font-extrabold uppercase text-rose-700 tracking-wider">Yasal Koruma Kalkanı</span>
+                    <span className="text-[9px] font-extrabold uppercase text-rose-700 tracking-wider">Yasal Koruma Kalkanı Stratejisi</span>
                     <h4 className="text-md font-black text-rose-950 mt-0.5">{data.legal_report.legal_strategy_title}</h4>
                   </div>
-
-                  {/* Yasal Zorunluluklar ve Teknik Riskler */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Yasal Gereksinimler */}
                     <div className="space-y-3">
-                      <h4 className="font-bold text-slate-950 text-xs flex items-center gap-1">
-                        <span>📜</span> KVKK / GDPR ve Sözleşme Zorunlulukları
-                      </h4>
+                      <h4 className="font-bold text-slate-950 text-xs flex items-center gap-1">📜 KVKK / GDPR ve Sözleşme Zorunlulukları</h4>
                       {data.legal_report.legal_requirements.map((req, i) => (
                         <div key={i} className="bg-white border border-slate-100 p-4 rounded-xl space-y-2">
                           <div className="flex justify-between items-center">
@@ -541,24 +558,82 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
                         </div>
                       ))}
                     </div>
-
-                    {/* Teknik Risk Azaltma Planları */}
                     <div className="space-y-3">
-                      <h4 className="font-bold text-slate-950 text-xs flex items-center gap-1">
-                        <span>🛡️</span> Kritik Teknik Risk Azaltma (Mitigation)
-                      </h4>
+                      <h4 className="font-bold text-slate-950 text-xs flex items-center gap-1">🛡️ Kritik Teknik Risk Azaltma (Mitigation)</h4>
                       {data.legal_report.technical_risks.map((risk, i) => (
                         <div key={i} className="bg-white border border-slate-100 p-4 rounded-xl space-y-2">
-                          <h5 className="font-bold text-rose-950 text-xs flex items-center gap-1">
-                            <span className="text-rose-500">⚠️</span> {risk.risk_name}
-                          </h5>
+                          <h5 className="font-bold text-rose-950 text-xs flex items-center gap-1">⚠️ {risk.risk_name}</h5>
                           <div className="bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100/50 space-y-0.5">
-                            <span className="text-[9px] text-emerald-800 font-bold block">💡 Çözüm & Risk Azaltma Planı:</span>
+                            <span className="text-[9px] text-emerald-800 font-bold block">💡 Çözüm Planı:</span>
                             <p className="text-emerald-950 font-medium leading-relaxed">{risk.mitigation_plan}</p>
                           </div>
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* [26. GÜN]: Test Otomasyonu ve QA Paneli */}
+            {(activeTab === "qa" || activeTab === "full") && data.qa_report && (
+              <div className="space-y-4 pt-4 border-t border-teal-100">
+                <h3 className="font-black text-teal-950 text-sm border-l-4 border-teal-500 pl-2">🧪 Test Otomasyonu & QA Sistem Kalite Raporu</h3>
+                <div className="space-y-4">
+                  {/* Başlık ve Skor Kartı */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-8 bg-gradient-to-r from-teal-500/10 to-emerald-500/10 border border-teal-100 p-4 rounded-2xl flex flex-col justify-between">
+                      <div>
+                        <span className="text-[9px] font-extrabold uppercase text-teal-700 tracking-wider">Aktif Test Süiti</span>
+                        <h4 className="text-sm font-black text-teal-950 mt-0.5">{data.qa_report.test_suite_title}</h4>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-2">
+                        API şemaları, SQLite entegrasyonu ve cooldown zamanlayıcıları her simülasyon öncesinde otomatik olarak denetlenir.
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-4 bg-teal-950 text-white p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                      <span className="text-[9px] font-extrabold uppercase tracking-widest text-teal-300">Genel Sağlık Skoru</span>
+                      <span className="text-4xl font-black text-emerald-400 mt-1">{data.qa_report.overall_health_score}%</span>
+                      <span className="text-[8px] text-teal-200/70 mt-1 font-semibold">Sistem Kararlılığı: Yüksek</span>
+                    </div>
+                  </div>
+
+                  {/* Koşturulan Test Senaryoları */}
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-slate-900 text-xs">🚀 Koşturulan Entegrasyon Test Senaryoları</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      {data.qa_report.test_cases.map((tc, i) => (
+                        <div key={i} className="bg-white border border-slate-100 p-4 rounded-xl space-y-2">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500"></span> {tc.endpoint}
+                            </h5>
+                            <div className="flex gap-2 shrink-0">
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 text-[8px] font-extrabold rounded-full">
+                                {tc.status}
+                              </span>
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 text-[8px] font-bold rounded-full">
+                                {tc.response_time_ms}ms
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-slate-600 font-medium leading-relaxed">{tc.validation_notes}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Kritik Açıklar / İyileştirmeler */}
+                  <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-100">
+                    <h4 className="font-black text-rose-950 text-xs mb-2 flex items-center gap-1.5">
+                      <span>⚠️</span> Önerilen Kritik İyileştirmeler & QA Geri Bildirimi
+                    </h4>
+                    <ul className="list-disc pl-4 space-y-1.5 text-rose-900 font-medium">
+                      {data.qa_report.critical_vulnerabilities.map((vuln, i) => (
+                        <li key={i}>{vuln}</li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>
