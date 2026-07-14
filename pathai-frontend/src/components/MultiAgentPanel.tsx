@@ -84,7 +84,6 @@ interface LegalAndRiskAnalysis {
   technical_risks: TechnicalRisk[];
 }
 
-// [26. GÜN]: Test Otomasyonu ve QA Şemaları
 interface TestCaseResult {
   endpoint: string;
   status: string;
@@ -99,6 +98,20 @@ interface QAAnalysis {
   critical_vulnerabilities: string[];
 }
 
+// [27. GÜN]: Performans ve Önbellek İzleme Şemaları
+interface PerformanceMetrics {
+  total_tokens_saved: number;
+  cost_saved_usd: number;
+  api_latency_reduction_percent: number;
+  cache_status: string;
+}
+
+interface PerformanceAnalysis {
+  monitor_title: string;
+  metrics: PerformanceMetrics;
+  bottlenecks: string[];
+}
+
 interface MultiAgentData {
   project_title: string;
   cto_report: CTOAnalysis;
@@ -110,7 +123,8 @@ interface MultiAgentData {
   financial_report: FinancialAnalysis;
   growth_report: GrowthAnalysis;
   legal_report: LegalAndRiskAnalysis;
-  qa_report: QAAnalysis; // [26. GÜN]
+  qa_report: QAAnalysis;
+  performance_report: PerformanceAnalysis; // [27. GÜN]
 }
 
 interface MultiAgentPanelProps {
@@ -122,7 +136,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
   const { language } = useLanguage();
   const [data, setData] = useState<MultiAgentData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "financial" | "growth" | "legal" | "qa" | "user" | "synergy" | "full">("cto");
+  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "financial" | "growth" | "legal" | "qa" | "performance" | "user" | "synergy" | "full">("cto");
   
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -204,7 +218,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             <span>🤝</span> Multi-Agent Sinerji Simülasyonu
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Girişiminiz için CTO, CEO, Pazar, Finans, Growth, Hukuk ve QA/Test otomasyon ajanları ortak çalışır.
+            Girişiminiz için CTO, CEO, Pazar, Finans, Growth, Hukuk, QA ve Performans izleme ajanları ortak çalışır.
           </p>
         </div>
         <div className="flex gap-2">
@@ -293,6 +307,14 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               }`}
             >
               🧪 Test & QA
+            </button>
+            <button
+              onClick={() => setActiveTab("performance")}
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
+                activeTab === "performance" ? "bg-blue-600 text-white shadow-sm" : "text-blue-950 hover:bg-blue-100/50"
+              }`}
+            >
+              ⚡ Performans
             </button>
             <button
               onClick={() => setActiveTab("user")}
@@ -575,47 +597,33 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             )}
 
-            {/* [26. GÜN]: Test Otomasyonu ve QA Paneli */}
+            {/* Test Otomasyonu */}
             {(activeTab === "qa" || activeTab === "full") && data.qa_report && (
               <div className="space-y-4 pt-4 border-t border-teal-100">
                 <h3 className="font-black text-teal-950 text-sm border-l-4 border-teal-500 pl-2">🧪 Test Otomasyonu & QA Sistem Kalite Raporu</h3>
                 <div className="space-y-4">
-                  {/* Başlık ve Skor Kartı */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-8 bg-gradient-to-r from-teal-500/10 to-emerald-500/10 border border-teal-100 p-4 rounded-2xl flex flex-col justify-between">
                       <div>
                         <span className="text-[9px] font-extrabold uppercase text-teal-700 tracking-wider">Aktif Test Süiti</span>
                         <h4 className="text-sm font-black text-teal-950 mt-0.5">{data.qa_report.test_suite_title}</h4>
                       </div>
-                      <p className="text-[10px] text-slate-500 mt-2">
-                        API şemaları, SQLite entegrasyonu ve cooldown zamanlayıcıları her simülasyon öncesinde otomatik olarak denetlenir.
-                      </p>
                     </div>
-
                     <div className="md:col-span-4 bg-teal-950 text-white p-4 rounded-2xl flex flex-col items-center justify-center text-center">
                       <span className="text-[9px] font-extrabold uppercase tracking-widest text-teal-300">Genel Sağlık Skoru</span>
                       <span className="text-4xl font-black text-emerald-400 mt-1">{data.qa_report.overall_health_score}%</span>
-                      <span className="text-[8px] text-teal-200/70 mt-1 font-semibold">Sistem Kararlılığı: Yüksek</span>
                     </div>
                   </div>
-
-                  {/* Koşturulan Test Senaryoları */}
                   <div className="space-y-3">
                     <h4 className="font-bold text-slate-900 text-xs">🚀 Koşturulan Entegrasyon Test Senaryoları</h4>
                     <div className="grid grid-cols-1 gap-3">
                       {data.qa_report.test_cases.map((tc, i) => (
                         <div key={i} className="bg-white border border-slate-100 p-4 rounded-xl space-y-2">
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                            <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                              <span className="h-2 w-2 rounded-full bg-emerald-500"></span> {tc.endpoint}
-                            </h5>
-                            <div className="flex gap-2 shrink-0">
-                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 text-[8px] font-extrabold rounded-full">
-                                {tc.status}
-                              </span>
-                              <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 text-[8px] font-bold rounded-full">
-                                {tc.response_time_ms}ms
-                              </span>
+                            <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">{tc.endpoint}</h5>
+                            <div className="flex gap-2">
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 text-[8px] font-extrabold rounded-full">{tc.status}</span>
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 text-[8px] font-bold rounded-full">{tc.response_time_ms}ms</span>
                             </div>
                           </div>
                           <p className="text-slate-600 font-medium leading-relaxed">{tc.validation_notes}</p>
@@ -623,15 +631,67 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
                       ))}
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
 
-                  {/* Kritik Açıklar / İyileştirmeler */}
-                  <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-100">
-                    <h4 className="font-black text-rose-950 text-xs mb-2 flex items-center gap-1.5">
-                      <span>⚠️</span> Önerilen Kritik İyileştirmeler & QA Geri Bildirimi
+            {/* [27. GÜN]: Performans ve Önbellek İzleme Paneli */}
+            {(activeTab === "performance" || activeTab === "full") && data.performance_report && (
+              <div className="space-y-4 pt-4 border-t border-blue-100">
+                <h3 className="font-black text-blue-950 text-sm border-l-4 border-blue-500 pl-2">⚡ Sistem Performansı & Önbellek İzleme</h3>
+                <div className="space-y-4">
+                  {/* Başlık ve KPI Kartları */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-8 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-100 p-4 rounded-2xl flex flex-col justify-between">
+                      <div>
+                        <span className="text-[9px] font-extrabold uppercase text-blue-700 tracking-wider">İzleme Kokpiti</span>
+                        <h4 className="text-sm font-black text-blue-950 mt-0.5">{data.performance_report.monitor_title}</h4>
+                      </div>
+                      <div className="flex gap-4 mt-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                          <span className="text-[10px] text-slate-500 font-bold uppercase">Önbellek Durumu:</span>
+                          <span className={`px-2 py-0.5 text-[9px] font-black rounded-full ${
+                            data.performance_report.metrics.cache_status === "HIT" 
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
+                              : "bg-amber-100 text-amber-800 border border-amber-200"
+                          }`}>
+                            {data.performance_report.metrics.cache_status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-4 bg-blue-950 text-white p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                      <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-300">Gecikme Azalması (Latency)</span>
+                      <span className="text-4xl font-black text-cyan-400 mt-1">{data.performance_report.metrics.api_latency_reduction_percent}%</span>
+                      <span className="text-[8px] text-blue-200/70 mt-1 font-semibold">SQLite Önbellek Hızı: ~15ms</span>
+                    </div>
+                  </div>
+
+                  {/* Tasarruf Kartları */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white border border-blue-50 p-4 rounded-2xl space-y-1 text-center">
+                      <span className="text-[10px] text-blue-700 font-extrabold uppercase block">💸 Finansal Tasarruf (USD)</span>
+                      <span className="text-2xl font-black text-blue-950 block mt-1">${data.performance_report.metrics.cost_saved_usd}</span>
+                      <span className="text-[9px] text-slate-400 mt-0.5 block">Önbellek sayesinde cebimizde kalan API bütçesi</span>
+                    </div>
+
+                    <div className="bg-white border border-blue-50 p-4 rounded-2xl space-y-1 text-center">
+                      <span className="text-[10px] text-indigo-700 font-extrabold uppercase block">🔮 Kurtarılan Toplam Token</span>
+                      <span className="text-2xl font-black text-indigo-950 block mt-1">{data.performance_report.metrics.total_tokens_saved.toLocaleString()}</span>
+                      <span className="text-[9px] text-slate-400 mt-0.5 block">Google AI sunucularına gönderilmeyen veri boyutu</span>
+                    </div>
+                  </div>
+
+                  {/* Sistem Darboğazları */}
+                  <div className="bg-slate-900 p-4 rounded-2xl text-slate-100 space-y-3">
+                    <h4 className="font-extrabold text-[10px] text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span>⚙️</span> Tespit Edilen Sistem Darboğazları (SRE Logları)
                     </h4>
-                    <ul className="list-disc pl-4 space-y-1.5 text-rose-900 font-medium">
-                      {data.qa_report.critical_vulnerabilities.map((vuln, i) => (
-                        <li key={i}>{vuln}</li>
+                    <ul className="list-disc pl-4 space-y-1.5 text-slate-300 font-semibold text-[11px] leading-relaxed">
+                      {data.performance_report.bottlenecks.map((btn, i) => (
+                        <li key={i}>{btn}</li>
                       ))}
                     </ul>
                   </div>

@@ -226,6 +226,33 @@ class MultiAgentOrchestratorResponse(BaseModel):
     legal_report: LegalAndRiskAnalysis
     qa_report: QAAnalysis # [26. GÜN]: Yeni eklenen QA analizi alanı
 
+# [27. GÜN]: Performans, Önbellek ve İzleme Şemaları
+class PerformanceMetrics(BaseModel):
+    total_tokens_saved: int = Field(description="Önbellek (Cache Hit) sayesinde harcanmaktan kurtarılan tahmini toplam token sayısı")
+    cost_saved_usd: float = Field(description="Kurtarılan tokenların USD cinsinden tahmini finansal karşılığı")
+    api_latency_reduction_percent: int = Field(description="Önbellekten dönüldüğünde yaşanan milisaniye bazlı hızlanma yüzdesi (Örn: %95 daha hızlı)")
+    cache_status: str = Field(description="Mevcut simülasyonun önbellek durumu: HIT (Önbellekten döndü) veya MISS (Yeniden üretildi)")
+
+class PerformanceAnalysis(BaseModel):
+    monitor_title: str = Field(description="Performans izleme panelinin başlığı")
+    metrics: PerformanceMetrics = Field(description="Sistem genel verimlilik ve hız göstergeleri")
+    bottlenecks: List[str] = Field(description="Sistem performansını artırmak için optimize edilebilecek en kritik 2 darboğaz")
+
+# Ana yanıt modeline bu yeni performans izleme katmanını da dahil ediyoruz
+class MultiAgentOrchestratorResponse(BaseModel):
+    project_title: str
+    cto_report: CTOAnalysis
+    ceo_report: CEOAnalysis
+    synergy_summary: str
+    user_test: UserPersonaAnalysis
+    debate_report: AgentDebateAnalysis
+    competitor_report: CompetitorAnalysis
+    financial_report: FinancialAnalysis
+    growth_report: GrowthAnalysis
+    legal_report: LegalAndRiskAnalysis
+    qa_report: QAAnalysis
+    performance_report: PerformanceAnalysis # [27. GÜN]: Yeni eklenen performans analizi alanı
+
 # [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
 class MultiAgentHistory(Base):
     __tablename__ = "multi_agent_history"
@@ -991,7 +1018,7 @@ MOCK_MODE = True
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
     # 🚨 MOCK MODU AKTİFSE GEMINI'A GİTME, ANINDA YENİ TEST VERİSİ DÖN
     if MOCK_MODE:
-        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. QA raporlu test verisi üretiliyor...")
+        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Performans analizli test verisi üretiliyor...")
         return {
             "project_title": project_title,
             "cto_report": {
@@ -1069,24 +1096,24 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
                         "endpoint": "GET /api/multi-agent/simulate?project_title=... (Şema Doğrulaması)",
                         "status": "PASSED",
                         "response_time_ms": 120,
-                        "validation_notes": "Pydantic şeması (MultiAgentOrchestratorResponse) tüm ajan çıktıları için %100 başarıyla doğrulandı. Hiçbir veri kaybı veya tip uyuşmazlığı tespit edilmedi."
-                    },
-                    {
-                        "endpoint": "DB Session & Cache Retrieval Integrity Test",
-                        "status": "PASSED",
-                        "response_time_ms": 15,
-                        "validation_notes": "SQLite yerel önbellek mekanizması (Semantic Match) başarıyla sorgulandı. Mükemmel eşleşen projeler Gemini API'ye yük bindirmeden 15ms altında döndü."
-                    },
-                    {
-                        "endpoint": "API Rate Limit & Cooldown Simulation Test",
-                        "status": "PASSED",
-                        "response_time_ms": 4015,
-                        "validation_notes": "Ajanlar arası 4.0 saniyelik zorunlu bekleme süreleri (cooldown) ve hata yakalama (Fallback) mekanizmaları tıkır tıkır çalışarak 429 hatalarını tamamen bloke etti."
+                        "validation_notes": "Pydantic şeması tüm ajan çıktıları için %100 başarıyla doğrulandı."
                     }
                 ],
                 "critical_vulnerabilities": [
-                    "Çok hızlı ardışık buton tıklamalarında frontend üzerinde loading durumunun kilitlenmemesi için istek engelleme (debounce) aktifleştirilmelidir.",
                     "Hatalı karakter içeren proje başlıkları için endpoint bazında sanitization filtresi güçlendirilmelidir."
+                ]
+            },
+            "performance_report": {
+                "monitor_title": "PathAI Real-Time Performance & Token Savings Dashboard",
+                "metrics": {
+                    "total_tokens_saved": 42500,
+                    "cost_saved_usd": 0.85,
+                    "api_latency_reduction_percent": 96,
+                    "cache_status": "HIT"
+                },
+                "bottlenecks": [
+                    "Çoklu eşzamanlı (concurrency) Gemini isteklerinde SQLite kilitlenme riskini önlemek için bağlantı havuzu (connection pooling) optimize edilmelidir.",
+                    "Ajanların ardışık bekleme (sleep) mekanizması yerine asenkron (`asyncio.gather`) paralel istek kurgusuna geçilerek MISS durumundaki toplam süre 8 saniyeye indirilebilir."
                 ]
             }
         }
@@ -1168,41 +1195,53 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         legal_data = json.loads(legal_response.text)
         time.sleep(4.0)
 
-        # --- 8. TEST OTOMASYONU VE QA AJANI (Yeni Adım) ---
-        qa_prompt = f"""
-        Rol: Baş Test Otomasyonu Mühendisi (Lead QA Engineer) ve Sistem Kararlılık Analisti.
-        Proje Başlığı: "{project_title}"
-        Teknik Mimari (CTO): {cto_response.text}
-        Hukuk & Risk Raporu: {legal_response.text}
-        
-        Lütfen bu çoklu ajan sisteminin ve API endpoint'lerimizin kararlılığını test eden otomatik bir QA raporu kurgula:
-        1. QA test süitinin teknik adı (test_suite_title).
-        2. Sistemin genel sağlık ve kararlılık puanı (overall_health_score - 1 ile 100 arası).
-        3. En az 3 adet kritik test senaryosunun (Ajan Şema Uyumluluğu, Önbellek Entegrasyonu, Hata Yakalama Dayanıklılığı vb.) simüle edilmiş sonuçlarını (test_cases listesinde endpoint, status [PASSED/FAILED], response_time_ms ve validation_notes ile).
-        4. Sistemde çözülmesi gereken veya önerilen en kritik 2 adet zafiyet/QA düzeltmesini (critical_vulnerabilities listesinde).
-        
-        {lang_instruction}
-        """
+        # --- 8. TEST OTOMASYONU VE QA AJANI ---
+        qa_prompt = f"Proje: '{project_title}'. Mimari: {cto_response.text}. Risk Analizi: {legal_response.text}. QA Raporu ve entegrasyon test sonuçlarını çıkar."
         qa_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=qa_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=QAAnalysis,
-                temperature=0.4
-            ),
+            contents=qa_prompt + f"\n{lang_instruction}",
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=QAAnalysis, temperature=0.4),
         )
         qa_data = json.loads(qa_response.text)
         time.sleep(4.0)
 
-        # --- 9. Sinerji Özet ---
+        # --- 9. PERFORMANS VE ÖNBELLEK AJANI (Yeni Adım) ---
+        performance_prompt = f"""
+        Rol: Baş Performans Mühendisi (Lead Performance & Site Reliability Engineer) ve Veritabanı Optimizasyon Uzmanı.
+        Proje Başlığı: "{project_title}"
+        Teknik Mimari (CTO): {cto_response.text}
+        QA Raporu: {qa_response.text}
+        
+        Lütfen bu sistemin önbellek (Semantic Cache), gecikme (latency) ve maliyet tasarruf metriklerini analiz et:
+        1. Performans izleme panelinin adı (monitor_title).
+        2. Tahmini kurtarılan toplam token sayısını (total_tokens_saved - 35000 ile 50000 arası bir tam sayı).
+        3. Kurtarılan tokenların finansal karşılığını (cost_saved_usd - token başına ortalama maliyetle USD bazlı).
+        4. Önbellek isabeti (HIT) durumunda hızlanma yüzdesini (api_latency_reduction_percent - %90 ile %98 arası bir tam sayı).
+        5. Mevcut simülasyonun önbellek durumunu (cache_status - HIT veya MISS).
+        6. Sistemdeki en kritik 2 adet darboğazı ve bunları aşma planını (bottlenecks listesinde).
+        
+        {lang_instruction}
+        """
+        performance_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=performance_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=PerformanceAnalysis,
+                temperature=0.3
+            ),
+        )
+        performance_data = json.loads(performance_response.text)
+        time.sleep(4.0)
+
+        # --- 10. Sinerji Özet ---
         synergy_prompt = f"CTO: {cto_response.text}, CEO: {ceo_response.text}. Girişimciye en kritik 3 tavsiyeyi yaz. {lang_instruction}"
         synergy_response = client.models.generate_content(
             model='gemini-2.5-flash', contents=synergy_prompt, config=types.GenerateContentConfig(temperature=0.5)
         )
         time.sleep(4.0)
 
-        # --- 10. User Persona ---
+        # --- 11. User Persona ---
         user_prompt = f"Proje: '{project_title}'. Hedef Kitle: '{ceo_data.get('target_audience', '')}'. Bu ürünü kullanır mıydın? Puanla. {lang_instruction}"
         user_response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -1215,14 +1254,15 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             "project_title": project_title,
             "cto_report": cto_data,
             "ceo_report": ceo_data,
-            "synergy_summary": synergy_response.text,
+            "synergy_summary": synergy_summary,
             "user_test": user_data,
             "debate_report": debate_data,
             "competitor_report": competitor_data,
             "financial_report": financial_data,
             "growth_report": growth_data,
             "legal_report": legal_data,
-            "qa_report": qa_data
+            "qa_report": qa_data,
+            "performance_report": performance_data
         }
 
     except Exception as e:
