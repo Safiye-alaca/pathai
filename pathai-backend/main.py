@@ -90,6 +90,20 @@ class MultiAgentOrchestratorResponse(BaseModel):
     synergy_summary: str
     user_test: UserPersonaAnalysis # Yeni eklenen kullanıcı simülasyonu alanı
 
+# [21. GÜN]: Ajanlar Arası Tartışma ve Uzlaşı Şemaları
+class AgentDebateAnalysis(BaseModel):
+    cto_criticism: str = Field(description="CTO'nun, CEO'nun iş modeline ve pazara giriş stratejisine yönelik teknik/bütçe eleştirisi")
+    ceo_criticism: str = Field(description="CEO'nun, CTO'nun yazılım mimarisine yönelik süre/karmaşıklık/maliyet eleştirisi")
+    mvp_consensus: str = Field(description="İki ajanın tartışarak ortak noktada buluştuğu, pazar dostu ve teknik olarak uygulanabilir nihai MVP planı")
+
+# Ana yanıt modelini de bu yeni tartışma alanıyla genişletiyoruz
+class MultiAgentOrchestratorResponse(BaseModel):
+    project_title: str
+    cto_report: CTOAnalysis
+    ceo_report: CEOAnalysis
+    synergy_summary: str
+    user_test: UserPersonaAnalysis
+    debate_report: AgentDebateAnalysis # [21. GÜN]: Yeni eklenen tartışma katmanı
 
 # [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
 class MultiAgentHistory(Base):
@@ -343,7 +357,7 @@ def get_sector_projects(sector: str, lang: str = "tr"):
     # Gemini Prompt Hazırlığı
     lang_instruction = get_language_instruction(lang)
     prompt = f"""
-    Sen kıdemli bir Yapay Zeka Tobacco ve Veri Bilimi Mentorüsün. 
+    Sen kıdemli bir Yapay Zeka ve Veri Bilimi Mentorüsün. 
     Kullanıcı '{sector}' sektörü için yapay zeka proje fikirleri istiyor.
     Lütfen bu sektöre katma değer sağlayacak, güncel trendlere uygun 2 adet özgün proje fikri üret.
     
@@ -360,10 +374,57 @@ def get_sector_projects(sector: str, lang: str = "tr"):
             ),
         )
         return json.loads(response.text)
+        
     except Exception as gemini_error:
-        raise HTTPException(status_code=500, detail=str(gemini_error))
-
-
+        # 🚨 GEMINI ÇÖKERSE VEYA RATE LIMIT (429) VERİRSE DEVREYE GİRECEK KURTARMA PLANI:
+        print(f"⚠️ [GEMINI FALLBACK]: '{sector}' sektörü için Gemini limitine takılındı veya hata alındı. Statik veriler dönülüyor.")
+        
+        # Sektöre göre döneceğimiz acil durum projeleri (SectorProjectResponse yapısına uygun)
+        fallback_data = {
+            "finance": {
+                "projects": [
+                    {
+                        "title": "Farmance",
+                        "description": "Tarım simülasyonu mekanikleriyle kişisel finans yönetimini ve yatırım araçlarını öğreten mobil finansal okuryazarlık oyunu."
+                    },
+                    {
+                        "title": "Mikro-Yatırım Asistanı",
+                        "description": "Kullanıcıların günlük harcamalarının küsuratlarını otomatik olarak fona veya altına dönüştüren akıllı birikim uygulaması."
+                    }
+                ]
+            },
+            "e-ticaret": {
+                "projects": [
+                    {
+                        "title": "Tashigo",
+                        "description": "Esnaf drop-off noktaları ve yerel ticari ortaklıklar kullanan, peer-to-peer kargo lojistiği sağlayan akıllı kurye platformu."
+                    },
+                    {
+                        "title": "Dinamik Fiyatlandırma Paneli",
+                        "description": "Yapay zeka modelleriyle talep, stok durumu ve rakip analizlerine göre ürün fiyatlarını otomatik güncelleyen e-ticaret yönetim aracı."
+                    }
+                ]
+            }
+        }
+        
+        # İstek yapılan sektörü küçük harfe çevirip eşleştiriyoruz
+        sector_key = sector.lower()
+        if sector_key in fallback_data:
+            return fallback_data[sector_key]
+            
+        # Eğer tanımlı olmayan bir sektör ise varsayılan olarak döneceğimiz yedek şablon
+        return {
+            "projects": [
+                {
+                    "title": f"Yapay Zeka Destekli {sector} Platformu",
+                    "description": f"{sector} alanındaki operasyonları yapay zeka modelleriyle optimize eden, veri analizi ve tahminleme sunan akıllı yazılım çözümü."
+                },
+                {
+                    "title": f"Akıllı {sector} Asistanı",
+                    "description": f"Kullanıcıların {sector} süreçlerindeki sorunlarını çözmek amacıyla eğitilmiş, özelleştirilmiş büyük dil modeli asistanı."
+                }
+            ]
+        }
 # [2. GÜN ENDPOINT'İ]: Seçilen projeye özel mimari ve yol haritası çıkaran Ajan servisi
 @app.get("/api/roadmap/{project_title}")
 def get_project_roadmap(project_title: str, lang: str = "tr"):
@@ -571,12 +632,42 @@ def suggest_projects(area: str = None, level: str = "Orta", lang: str = "tr"):
                 temperature=0.7
             ),
         )
-        # Gelen metni güvenli bir şekilde JSON objesine pars edip doğrudan dönüyoruz
         return json.loads(response.text)
     except Exception as gemini_error:
-        raise HTTPException(status_code=500, detail=str(gemini_error))
-    
-
+        # 🚨 GEMINI ÇÖKERSE ŞEMAYA TAM UYUMLU ACİL DURUM PLANI:
+        print(f"⚠️ [GEMINI FALLBACK]: '{effective_area}' alanı için Gemini limitine takılındı. Statik öneriler dönülüyor.")
+        
+        # Şemanın beklediği 'title', 'description', 'short_desc' ve 'difficulty' alanlarını tam olarak besliyoruz!
+        fallback_suggestions = {
+            "area": effective_area,
+            "suggestions": [
+                {
+                    "title": f"Yapay Zeka Destekli {effective_area.capitalize()} Platformu",
+                    "description": f"Kullanıcıların {effective_area} süreçlerini optimize eden, akıllı veri analitiği ve dashboard sunan modern bir web uygulaması.",
+                    "short_desc": f"Akıllı {effective_area} analiz paneli ve tahminleme aracı.",
+                    "difficulty": level
+                },
+                {
+                    "title": f"Akıllı {effective_area.capitalize()} Otomasyon Sistemi",
+                    "description": "Gereksiz iş yükünü ortadan kaldıran, veri akışını otomatik analiz eden ve tahminleme yapan akıllı mikroservis mimarisi.",
+                    "short_desc": "Mikroservis mimarili akıllı otomasyon backend sistemi.",
+                    "difficulty": level
+                },
+                {
+                    "title": f"P2P {effective_area.capitalize()} Paylaşım Ağı",
+                    "description": "Kullanıcıların doğrudan etkileşime girmesini sağlayan, güvenli ve merkeziyetsiz bir pazar yeri tasarımı.",
+                    "short_desc": "Güvenli, doğrudan kullanıcılar arası paylaşım ağı.",
+                    "difficulty": level
+                },
+                {
+                    "title": f"Mobil {effective_area.capitalize()} Mentor Uygulaması",
+                    "description": f"Kullanıcılara {effective_area} alanında kişiselleştirilmiş tavsiyeler ve gerçek zamanlı takip mekanizmaları sunan mobil çözüm.",
+                    "short_desc": f"Kişiselleştirilmiş {effective_area} takip ve mobil asistan uygulaması.",
+                    "difficulty": level
+                }
+            ]
+        }
+        return fallback_suggestions
     
 # [16. GÜN]: Medium İçerik Asistanı için Anlık Akış (Streaming) Uç Noktası
 @app.get("/api/content-assistant", response_model=MediumResponse)
@@ -771,143 +862,119 @@ def get_evaluation_history(db: Session = Depends(get_db)):
     return formatted_records
 
 
-# [18/19. GÜN]: Akıllı Önbellek ve Rate-Limit Korumalı Çoklu Ajan Orkestratörü
+# Geliştirme yaparken Gemini API limitlerine takılmamak için bu modu True yapabilirsin.
+# Gerçek Gemini API ile çalışmak istediğinde False yapman yeterlidir.
+MOCK_MODE = True  
+
 @app.get("/api/multi-agent/simulate", response_model=MultiAgentOrchestratorResponse)
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
+    # 🚨 MOCK MODU AKTİFSE GEMINI'A GİTME, ANINDA YENİ TARTIŞMA VERİSİ DÖN
+    if MOCK_MODE:
+        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Tartışmalı test verisi üretiliyor...")
+        return {
+            "project_title": project_title,
+            "cto_report": {
+                "software_architecture": "FastAPI tabanlı mikroservis mimarisi ve Next.js frontend entegrasyonu.",
+                "database_design": "PostgreSQL birincil veritabanı, oturum ve cache yönetimi için Redis katmanı.",
+                "security_infrastructure": "OAuth2 şifreleme protokolü, JWT tabanlı oturum yönetimi ve SSL sertifikası."
+            },
+            "ceo_report": {
+                "target_audience": "Girişimini büyütmek isteyen erken aşama yazılımcılar ve üniversite öğrencileri.",
+                "revenue_models": ["Aylık SaaS aboneliği", "PDF Raporu başına ödeme (Pay-as-you-go)", "B2B kurumsal entegrasyon"],
+                "go_to_market_strategy": "Üniversite kulüpleriyle ortaklıklar kurmak ve LinkedIn üzerinde organik içerik pazarlaması yapmak."
+            },
+            "synergy_summary": "Teknik mimari (CTO) ve iş modeli (CEO) genel olarak uyumlu görünüyor.",
+            "user_test": {
+                "persona_name": "Caner Yılmaz",
+                "demographics": "22 yaşında, bilgisayar mühendisliği öğrencisi, kısıtlı bütçeye sahip.",
+                "pain_points": ["Projelerine nasıl başlayacağını bilemiyor", "Teknik rapor hazırlamak çok vaktini alıyor"],
+                "brutal_feedback": "Arayüz harika ama bir öğrenci olarak aylık abonelik ücreti benim için çok pahalı.",
+                "adoption_score": 85
+            },
+            "debate_report": {
+                "cto_criticism": "CEO'nun önerdiği 'SaaS abonelik modeli' için erken aşamada çok karmaşık bir ödeme altyapısı kurmamız gerekir. İlk etapta tekil ödemelerle başlamak teknik borcu (technical debt) azaltacaktır.",
+                "ceo_criticism": "CTO'nun önerdiği 'Mikroservis mimarisi' ve 'Redis katmanı' MVP aşaması için çok lüks. Bu mimariyi kurmak pazara çıkışımızı en az 2 ay geciktirir. Basit bir monolit yapıyla başlamalıyız.",
+                "mvp_consensus": "Ortak karar: Projeye PostgreSQL kullanan monolit bir FastAPI yapısıyla başlanacak. Ödeme sistemi olarak karmaşık abonelikler yerine, kullanıcıların sadece kullandıkları kadar ödeyecekleri basit bir entegrasyon (pay-as-you-go) kurulacak. Böylece hem 3 haftada yayına çıkabileceğiz hem de maliyetleri minimumda tutacağız."
+            }
+        }
+
+    # 🌐 GERÇEK GEMINI AKIŞI
     db = SessionLocal()
     normalized_input = normalize_text(project_title)
     
     try:
-        # 1. Aşama: Önbellek Kontrolü
-        cached_record = get_semantic_match(project_title, db)
-        if cached_record and cached_record.user_test_json: # user_test_json doluysa önbellekten oku
-            print("🚀 [CACHE RETRIEVAL]: Veri Gemini'a gitmeden SQLite önbelleğinden çekildi!")
-            return {
-                "project_title": cached_record.original_title,
-                "cto_report": json.loads(cached_record.cto_report_json),
-                "ceo_report": json.loads(cached_record.ceo_report_json),
-                "synergy_summary": cached_record.synergy_summary,
-                "user_test": json.loads(cached_record.user_test_json)
-            }
-            
-        # 2. Aşama: Önbellekte Yoksa Sırayla ve Bekleyerek Çağır
-        print("🔮 [CACHE MISS]: Yeni proje! Gemini Ajanları tartışmaya başlıyor...")
+        # Önbellek Kontrolü (Hızlı geçiş için doğrudan sorguyu çalıştırıyoruz)
         lang_instruction = get_language_instruction(lang)
         
-        # --- CTO AJANI ---
-        cto_prompt = f"""
-        Sen PathAI platformunun kıdemli CTO Ajanısın.
-        "{sector}" sektöründe geliştirilecek "{project_title}" projesi için sadece teknik mimariyi tasarla.
-        Pazarlama, para veya hedef kitle hakkında asla konuşma. Sadece kod, veri tabanı, mimari ve güvenlik konuş.
-        
-        {lang_instruction}
-        """
+        # --- 1. CTO Raporu ---
+        cto_prompt = f"Rol: Kıdemli CTO. Proje: '{project_title}' ({sector}). Teknik mimariyi tasarla."
         cto_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=cto_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=CTOAnalysis,
-                temperature=0.4
-            ),
+            contents=cto_prompt + f"\n{lang_instruction}",
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=CTOAnalysis, temperature=0.3),
         )
         cto_data = json.loads(cto_response.text)
+        time.sleep(4.0)
 
-        # Rate Limit Önlemi: CEO öncesi bekleme
-        print("⏳ Rate limit koruması: CEO isteği öncesi bekleniyor...")
-        time.sleep(2.5)
-
-        # --- CEO AJANI ---
-        ceo_prompt = f"""
-        Sen PathAI platformunun vizyoner CEO ve Business Development Ajanısın.
-        "{sector}" sektöründe geliştirilecek "{project_title}" projesi için ticari stratejiyi çiz.
-        Yazılım dilleri veya kod mimarisi hakkında asla konuşma. Sadece pazar, para, gelir modelleri ve kullanıcılar hakkında konuş.
-        
-        {lang_instruction}
-        """
+        # --- 2. CEO Raporu ---
+        ceo_prompt = f"Rol: Vizyoner CEO. Proje: '{project_title}' ({sector}). İş planı ve gelir modellerini tasarla."
         ceo_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=ceo_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=CEOAnalysis,
-                temperature=0.7
-            ),
+            contents=ceo_prompt + f"\n{lang_instruction}",
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=CEOAnalysis, temperature=0.5),
         )
         ceo_data = json.loads(ceo_response.text)
+        time.sleep(4.0)
 
-        # Rate Limit Önlemi: Sinerji öncesi bekleme
-        print("⏳ Rate limit koruması: Sinerji özet isteği öncesi bekleniyor...")
-        time.sleep(2.5)
-
-        # --- SİNERJİ ROUTER ---
-        synergy_prompt = f"""
-        Bir projenin teknik raporu (CTO) ve iş geliştirme raporu (CEO) aşağıdadır:
-        CTO Raporu: {cto_response.text}
-        CEO Raporu: {ceo_response.text}
+        # --- 3. TARTIŞMA & UZLAŞI AJANI (Yeni Adım) ---
+        debate_prompt = f"""
+        Aşağıda aynı proje için hazırlanan teknik rapor (CTO) ve iş planı (CEO) yer almaktadır:
+        CTO Tasarımı: {cto_response.text}
+        CEO Tasarımı: {ceo_response.text}
         
-        Lütfen bu iki raporu inceleyerek yazılımcı adayına bu projeyi hayata geçirirken teknik ve ticari olarak dikkat etmesi gereken en kritik 3 şeyi birleştirici bir mentor diliyle özetle.
+        Görevlerin:
+        1. CTO gözüyle: CEO'nun iş modelini teknik zorluk ve bütçe açısından eleştir.
+        2. CEO gözüyle: CTO'nun mimarisini süre ve pazar hızı (Time-to-market) açısından eleştir.
+        3. Ortak Uzlaşı (MVP Consensus): İki tarafın da kabul edeceği, en hızlı ve kararlı yayına çıkış (MVP) planını yaz.
         
         {lang_instruction}
         """
-        synergy_response = client.models.generate_content(
+        debate_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=synergy_prompt,
-            config=types.GenerateContentConfig(temperature=0.6),
+            contents=debate_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=AgentDebateAnalysis,
+                temperature=0.6
+            ),
         )
+        debate_data = json.loads(debate_response.text)
+        time.sleep(4.0)
 
-        # Rate Limit Önlemi: Persona testi öncesi bekleme
-        print("⏳ Rate limit koruması: Persona simülasyonu öncesi bekleniyor...")
-        time.sleep(2.5)
+        # --- 4. Sinerji Özet ---
+        synergy_prompt = f"CTO: {cto_response.text}, CEO: {ceo_response.text}. Girişimciye en kritik 3 tavsiyeyi yaz. {lang_instruction}"
+        synergy_response = client.models.generate_content(
+            model='gemini-2.5-flash', contents=synergy_prompt, config=types.GenerateContentConfig(temperature=0.5)
+        )
+        time.sleep(4.0)
 
-        # --- USER PERSONA AJANI (Yeni Eklenen Adım) ---
-        user_prompt = f"""
-        Sen bu projenin potansiyel hedef kitlesinde yer alan gerçekçi ve bir o kadar da seçici bir kullanıcısın (Persona).
-        Proje Başlığı: "{project_title}"
-        Sektör: "{sector}"
-        CEO'nun Belirlediği Hedef Kitle İpucu: "{ceo_data.get('target_audience', '')}"
-
-        Lütfen bu projeyi inceleyerek samimi, dürüst ve eleştirel bir kullanıcı rolü üstlen.
-        Bu uygulamayı gerçekten telefonuna indirir miydin veya kullanır mıydın? Kullanırken yaşayacağın en büyük zorluk ne olurdu?
-        Acımasız ol ama yapıcı eleştiriler sun. Sonunda bu projeye 1-100 arası bir benimseme puanı (adoption score) ver.
-        
-        {lang_instruction}
-        """
+        # --- 5. User Persona ---
+        user_prompt = f"Proje: '{project_title}'. Hedef Kitle: '{ceo_data.get('target_audience', '')}'. Bu ürünü kullanır mıydın? Puanla. {lang_instruction}"
         user_response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=user_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=UserPersonaAnalysis,
-                temperature=0.8 # Daha yaratıcı ve özgün yanıtlar için temperature'ı biraz yüksek tutuyoruz
-            ),
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=UserPersonaAnalysis, temperature=0.6),
         )
         user_data = json.loads(user_response.text)
-
-        # 3. Aşama: Veritabanına Önbellekle
-        new_cache = MultiAgentHistory(
-            original_title=project_title,
-            normalized_title=normalized_input,
-            sector=sector,
-            cto_report_json=json.dumps(cto_data),
-            ceo_report_json=json.dumps(ceo_data),
-            synergy_summary=synergy_response.text,
-            user_test_json=json.dumps(user_data) # Yeni sütun kaydı
-        )
-        db.add(new_cache)
-        db.commit()
-        print("💾 [CACHE WRITE]: Yeni analiz ve kullanıcı testi raporu SQLite'a başarıyla önbelleklendi!")
 
         return {
             "project_title": project_title,
             "cto_report": cto_data,
             "ceo_report": ceo_data,
             "synergy_summary": synergy_response.text,
-            "user_test": user_data
+            "user_test": user_data,
+            "debate_report": debate_data
         }
 
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()

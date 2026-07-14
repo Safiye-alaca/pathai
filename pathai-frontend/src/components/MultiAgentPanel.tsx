@@ -17,7 +17,6 @@ interface CEOAnalysis {
   go_to_market_strategy: string;
 }
 
-// [20. GÜN]: Yeni Kullanıcı Personası Arayüzü
 interface UserPersonaAnalysis {
   persona_name: string;
   demographics: string;
@@ -26,12 +25,20 @@ interface UserPersonaAnalysis {
   adoption_score: number;
 }
 
+// [21. GÜN]: Yeni Ajan Tartışması Şeması
+interface AgentDebateAnalysis {
+  cto_criticism: string;
+  ceo_criticism: string;
+  mvp_consensus: string;
+}
+
 interface MultiAgentData {
   project_title: string;
   cto_report: CTOAnalysis;
   ceo_report: CEOAnalysis;
   synergy_summary: string;
-  user_test: UserPersonaAnalysis; // [20. GÜN]
+  user_test: UserPersonaAnalysis;
+  debate_report: AgentDebateAnalysis; // [21. GÜN]
 }
 
 interface MultiAgentPanelProps {
@@ -43,7 +50,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
   const { language } = useLanguage();
   const [data, setData] = useState<MultiAgentData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "user" | "synergy" | "full">("cto");
+  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "user" | "synergy" | "full">("cto");
   
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -103,7 +110,6 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
     }
   };
 
-  // Puan rengini belirlemek için yardımcı fonksiyon
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-emerald-600 bg-emerald-50 border-emerald-100";
     if (score >= 50) return "text-amber-600 bg-amber-50 border-amber-100";
@@ -118,7 +124,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             <span>🤝</span> Multi-Agent Sinerji Simülasyonu
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            CTO, CEO ve Sanal Müşteri ajanları projenizi eş zamanlı analiz eder.
+            CTO, CEO, Sanal Müşteri ve tartışma orkestrasyonu projenizi analiz eder.
           </p>
         </div>
         <div className="flex gap-2">
@@ -159,6 +165,14 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               }`}
             >
               💼 CEO Raporu
+            </button>
+            <button
+              onClick={() => setActiveTab("debate")}
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
+                activeTab === "debate" ? "bg-amber-600 text-white shadow-sm" : "text-amber-950 hover:bg-amber-100/50"
+              }`}
+            >
+              ⚔️ Ajan Tartışması
             </button>
             <button
               onClick={() => setActiveTab("user")}
@@ -249,12 +263,48 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             )}
 
-            {/* [20. GÜN]: Sanal Kullanıcı Test Sonuçları */}
+            {/* [21. GÜN]: Ajanlar Arası Çatışma ve Tartışma Paneli */}
+            {(activeTab === "debate" || activeTab === "full") && data.debate_report && (
+              <div className="space-y-4 pt-4 border-t border-amber-100">
+                <h3 className="font-black text-amber-950 text-sm border-l-4 border-amber-500 pl-2">⚔️ Ajanlar Arası Çatışma ve MVP Uzlaşısı</h3>
+                <div className="space-y-4">
+                  {/* Karşılıklı Atışma Kartları */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* CTO'nun CEO'ya eleştirisi */}
+                    <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl relative">
+                      <span className="absolute -top-2 left-4 px-2 py-0.5 bg-indigo-600 text-white font-extrabold text-[9px] rounded-full uppercase">CTO'nun Eleştirisi</span>
+                      <p className="text-indigo-950 font-medium italic pt-1">
+                        "{data.debate_report.cto_criticism}"
+                      </p>
+                    </div>
+
+                    {/* CEO'nun CTO'ya eleştirisi */}
+                    <div className="bg-purple-50/50 border border-purple-100 p-4 rounded-2xl relative">
+                      <span className="absolute -top-2 left-4 px-2 py-0.5 bg-purple-600 text-white font-extrabold text-[9px] rounded-full uppercase">CEO'nun Eleştirisi</span>
+                      <p className="text-purple-950 font-medium italic pt-1">
+                        "{data.debate_report.ceo_criticism}"
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Konsensüs Ortak MVP Kararı */}
+                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-5 rounded-2xl">
+                    <h4 className="font-black text-amber-950 text-xs mb-2 flex items-center gap-1.5">
+                      <span>🤝</span> Ortak Yönetim Kurulu Kararı: Nihai MVP Yol Haritası
+                    </h4>
+                    <p className="text-amber-900 font-semibold leading-relaxed">
+                      {data.debate_report.mvp_consensus}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sanal Kullanıcı Testi */}
             {(activeTab === "user" || activeTab === "full") && data.user_test && (
               <div className="space-y-4 pt-4 border-t border-pink-100">
                 <h3 className="font-black text-pink-950 text-sm border-l-4 border-pink-500 pl-2">👤 Sanal Müşteri & Kullanıcı Uyumluluk Testi</h3>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  {/* Sol Sütun: Profil Bilgisi ve Puan */}
                   <div className="md:col-span-4 bg-white p-4 rounded-xl border border-pink-100 space-y-3 flex flex-col justify-between">
                     <div>
                       <h4 className="font-bold text-pink-900 text-sm">{data.user_test.persona_name}</h4>
@@ -266,10 +316,9 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
                     </div>
                   </div>
 
-                  {/* Sağ Sütun: Beklentiler ve Acımasız Geri Bildirim */}
                   <div className="md:col-span-8 space-y-4">
                     <div className="bg-white p-4 rounded-xl border border-slate-100">
-                      <h4 className="font-bold text-slate-900 mb-1">🚨 Kullanıcı Acı Noktaları (Bu üründen ne bekliyor?)</h4>
+                      <h4 className="font-bold text-slate-900 mb-1">🚨 Kullanıcı Acı Noktaları</h4>
                       <ul className="list-disc pl-4 space-y-1 mt-1 text-slate-600">
                         {data.user_test.pain_points.map((point, i) => (
                           <li key={i}>{point}</li>
@@ -277,7 +326,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
                       </ul>
                     </div>
                     <div className="bg-rose-50/50 p-4 rounded-xl border border-rose-100/50">
-                      <h4 className="font-black text-rose-950 mb-1">💬 Acımasız Samimi Eleştiri (Brutal Feedback)</h4>
+                      <h4 className="font-black text-rose-950 mb-1">💬 Acımasız Geri Bildirim (Brutal Feedback)</h4>
                       <p className="text-rose-900 italic font-medium">"{data.user_test.brutal_feedback}"</p>
                     </div>
                   </div>
