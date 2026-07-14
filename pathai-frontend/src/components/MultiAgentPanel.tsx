@@ -42,7 +42,6 @@ interface CompetitorAnalysis {
   positioning_strategy: string;
 }
 
-// [23. GÜN]: Finansal Analiz Şemaları
 interface CostItem {
   name: string;
   amount: number;
@@ -56,6 +55,19 @@ interface FinancialAnalysis {
   costs_breakdown: CostItem[];
 }
 
+// [24. GÜN]: Büyüme Analizi Şemaları
+interface GrowthTactics {
+  acquisition_channel: string;
+  activation_tactic: string;
+  viral_loop: string;
+}
+
+interface GrowthAnalysis {
+  growth_strategy_title: string;
+  funnel_tactics: GrowthTactics;
+  recommended_tools: string[];
+}
+
 interface MultiAgentData {
   project_title: string;
   cto_report: CTOAnalysis;
@@ -64,7 +76,8 @@ interface MultiAgentData {
   user_test: UserPersonaAnalysis;
   debate_report: AgentDebateAnalysis;
   competitor_report: CompetitorAnalysis;
-  financial_report: FinancialAnalysis; // [23. GÜN]
+  financial_report: FinancialAnalysis;
+  growth_report: GrowthAnalysis; // [24. GÜN]
 }
 
 interface MultiAgentPanelProps {
@@ -76,7 +89,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
   const { language } = useLanguage();
   const [data, setData] = useState<MultiAgentData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "financial" | "user" | "synergy" | "full">("cto");
+  const [activeTab, setActiveTab] = useState<"cto" | "ceo" | "debate" | "competitor" | "financial" | "growth" | "user" | "synergy" | "full">("cto");
   
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -150,7 +163,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
             <span>🤝</span> Multi-Agent Sinerji Simülasyonu
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Girişiminiz için CTO, CEO, Pazar Analisti, Finans Uzmanı ve Sanal Kullanıcı ajanları ortak çalışır.
+            Girişiminiz için CTO, CEO, Pazar Analisti, Finans Uzmanı, Growth Hacker ve Sanal Kullanıcı ajanları ortak çalışır.
           </p>
         </div>
         <div className="flex gap-2">
@@ -215,6 +228,14 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               }`}
             >
               💰 Finansal Analiz
+            </button>
+            <button
+              onClick={() => setActiveTab("growth")}
+              className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
+                activeTab === "growth" ? "bg-orange-600 text-white shadow-sm" : "text-orange-950 hover:bg-orange-100/50"
+              }`}
+            >
+              📈 Büyüme Planı
             </button>
             <button
               onClick={() => setActiveTab("user")}
@@ -363,37 +384,28 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
               </div>
             )}
 
-            {/* [23. GÜN]: Finansal Analiz ve Bütçeleme Paneli */}
+            {/* Finansal Analiz */}
             {(activeTab === "financial" || activeTab === "full") && data.financial_report && (
               <div className="space-y-4 pt-4 border-t border-emerald-100">
                 <h3 className="font-black text-emerald-950 text-sm border-l-4 border-emerald-500 pl-2">💰 Finansal Öngörü ve Bütçeleme Raporu</h3>
                 <div className="space-y-4">
-                  {/* Özet KPI Kartları */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-emerald-50/40 border border-emerald-100 p-4 rounded-2xl text-center">
                       <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">Tahmini MVP Kurulum Maliyeti</span>
                       <span className="text-2xl font-black text-emerald-950 block mt-1">${data.financial_report.initial_mvp_cost}</span>
-                      <span className="text-[9px] text-slate-400 mt-0.5 block">Tek seferlik donanım/lisans/kurulum bütçesi</span>
                     </div>
-
                     <div className="bg-rose-50/40 border border-rose-100 p-4 rounded-2xl text-center">
                       <span className="text-[10px] font-extrabold text-rose-800 uppercase tracking-wider block">Aylık Operasyon Gideri (Burn Rate)</span>
                       <span className="text-2xl font-black text-rose-950 block mt-1">${data.financial_report.monthly_burn_rate}/ay</span>
-                      <span className="text-[9px] text-slate-400 mt-0.5 block">Sunucu, API limitleri ve sabit giderler</span>
                     </div>
-
                     <div className="bg-blue-50/40 border border-blue-100 p-4 rounded-2xl text-center">
                       <span className="text-[10px] font-extrabold text-blue-800 uppercase tracking-wider block">Başa Baş Noktası (Break-Even)</span>
                       <span className="text-2xl font-black text-blue-950 block mt-1">{data.financial_report.break_even_months} Ay</span>
-                      <span className="text-[9px] text-slate-400 mt-0.5 block">Kârlılığa geçiş için hedeflenen süre</span>
                     </div>
                   </div>
-
-                  {/* Bütçe Detay Tablosu */}
                   <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
                     <div className="px-4 py-3 bg-slate-100/50 border-b border-slate-100 flex justify-between items-center">
                       <h4 className="font-bold text-slate-900 text-xs">📋 Detaylı Gider Kalemleri Dağılımı</h4>
-                      <span className="text-[9px] text-slate-400">Tahmini Erken Aşama Bütçesi</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
@@ -410,9 +422,7 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
                               <td className="p-3 pl-4 text-slate-900 font-bold">{cost.name}</td>
                               <td className="p-3 text-center">
                                 <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold ${
-                                  cost.is_recurring 
-                                    ? "bg-rose-50 text-rose-700 border border-rose-100" 
-                                    : "bg-amber-50 text-amber-700 border border-amber-100"
+                                  cost.is_recurring ? "bg-rose-50 text-rose-700 border border-rose-100" : "bg-amber-50 text-amber-700 border border-amber-100"
                                 }`}>
                                   {cost.is_recurring ? "Her Ay Düzenli" : "Tek Seferlik"}
                                 </span>
@@ -422,6 +432,52 @@ export default function MultiAgentPanel({ projectTitle, sector }: MultiAgentPane
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* [24. GÜN]: Büyüme Stratejisi ve Pazarlama Otomasyonu Paneli */}
+            {(activeTab === "growth" || activeTab === "full") && data.growth_report && (
+              <div className="space-y-4 pt-4 border-t border-orange-100">
+                <h3 className="font-black text-orange-950 text-sm border-l-4 border-orange-500 pl-2">📈 Growth Hacking & Organik Büyüme Stratejisi</h3>
+                <div className="space-y-4">
+                  {/* Başlık Kartı */}
+                  <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-100 p-4 rounded-2xl">
+                    <span className="text-[9px] font-extrabold uppercase text-orange-700 tracking-wider">Tavsiye Edilen Büyüme Stratejisi</span>
+                    <h4 className="text-md font-black text-orange-950 mt-0.5">{data.growth_report.growth_strategy_title}</h4>
+                  </div>
+
+                  {/* AARRR Huni Kartları */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white p-4 rounded-xl border border-slate-100 space-y-1">
+                      <span className="text-[10px] text-orange-700 font-extrabold uppercase block">📣 1. Kullanıcı Edinme (Acquisition)</span>
+                      <p className="text-slate-600 font-medium leading-relaxed">{data.growth_report.funnel_tactics.acquisition_channel}</p>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-slate-100 space-y-1">
+                      <span className="text-[10px] text-orange-700 font-extrabold uppercase block">⚡ 2. Aktivasyon (Aha Moment)</span>
+                      <p className="text-slate-600 font-medium leading-relaxed">{data.growth_report.funnel_tactics.activation_tactic}</p>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-slate-100 space-y-1">
+                      <span className="text-[10px] text-orange-700 font-extrabold uppercase block">🔄 3. Viral Çark (Referral Loop)</span>
+                      <p className="text-slate-600 font-medium leading-relaxed">{data.growth_report.funnel_tactics.viral_loop}</p>
+                    </div>
+                  </div>
+
+                  {/* Önerilen Araçlar */}
+                  <div className="bg-slate-900 p-4 rounded-2xl text-slate-100 space-y-3">
+                    <h4 className="font-extrabold text-[10px] text-orange-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span>🛠️</span> Pazarlama Otomasyonu & Analitik Stack Önerisi
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {data.growth_report.recommended_tools.map((tool, i) => (
+                        <span key={i} className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl font-bold text-xs text-orange-300">
+                          {tool}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>

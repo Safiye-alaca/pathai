@@ -148,6 +148,29 @@ class MultiAgentOrchestratorResponse(BaseModel):
     competitor_report: CompetitorAnalysis
     financial_report: FinancialAnalysis # [23. GÜN]: Yeni eklenen finansal analiz alanı
 
+# [24. GÜN]: Büyüme ve Pazarlama Otomasyonu Şemaları
+class GrowthTactics(BaseModel):
+    acquisition_channel: str = Field(description="Kullanıcıları ürüne çekeceğimiz en etkili 1 numaralı organik kanal (Örn: SEO, LinkedIn, Topluluk Pazarlaması)")
+    activation_tactic: str = Field(description="Kullanıcının ürüne girdiği ilk 10 saniyede 'Aha! Bu harika bir şeymiş' demesini sağlayacak o sihirli anı (Aha Moment) yaratma yöntemi")
+    viral_loop: str = Field(description="Kullanıcıların kendi arkadaşlarını ürüne davet etmesini sağlayacak viral çark/referans mekanizması")
+
+class GrowthAnalysis(BaseModel):
+    growth_strategy_title: str = Field(description="Bu girişim için önerilen büyüme stratejisinin akılda kalıcı adı")
+    funnel_tactics: GrowthTactics = Field(description="AARRR hunisinin en kritik organik büyüme adımları")
+    recommended_tools: List[str] = Field(description="Büyümeyi otomatize etmek için kullanılması gereken 3 kritik araç (Örn: Segment, Mixpanel, Mailchimp, Loops)")
+
+# Ana yanıt modeline bu yeni büyüme analiz katmanını da dahil ediyoruz
+class MultiAgentOrchestratorResponse(BaseModel):
+    project_title: str
+    cto_report: CTOAnalysis
+    ceo_report: CEOAnalysis
+    synergy_summary: str
+    user_test: UserPersonaAnalysis
+    debate_report: AgentDebateAnalysis
+    competitor_report: CompetitorAnalysis
+    financial_report: FinancialAnalysis
+    growth_report: GrowthAnalysis # [24. GÜN]: Yeni eklenen büyüme analizi alanı
+
 # [18. GÜN]: Çoklu Ajan Raporları için Önbellek / Geçmiş Tablosu
 class MultiAgentHistory(Base):
     __tablename__ = "multi_agent_history"
@@ -913,7 +936,7 @@ MOCK_MODE = True
 def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"):
     # 🚨 MOCK MODU AKTİFSE GEMINI'A GİTME, ANINDA YENİ TEST VERİSİ DÖN
     if MOCK_MODE:
-        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Finansal öngörülü test verisi üretiliyor...")
+        print("🛠️ [MOCK MODE ACTIVE]: Gemini API bypass edildi. Büyüme öngörülü test verisi üretiliyor...")
         return {
             "project_title": project_title,
             "cto_report": {
@@ -935,46 +958,37 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
                 "adoption_score": 85
             },
             "debate_report": {
-                "cto_criticism": "CEO'nun önerdiği 'SaaS abonelik modeli' için erken aşamada çok karmaşık bir ödeme altyapısı kurmamız gerekir.",
-                "ceo_criticism": "CTO'nun önerdiği 'Mikroservis mimarisi' MVP aşaması için çok lüks. Basit bir monolit yapıyla başlamalıyız.",
-                "mvp_consensus": "Ortak karar: Projeye PostgreSQL kullanan monolit bir FastAPI yapısıyla başlanacak. Ödeme sistemi olarak karmaşık abonelikler yerine, kullanıcıların sadece kullandıkları kadar ödeyecekleri basit bir entegrasyon kurulacak."
+                "cto_criticism": "CEO'nun önerdiği 'SaaS abonelik modeli' teknik olarak karmaşık. İlk aşamada tekil ödemelerle ilerleyelim.",
+                "ceo_criticism": "CTO'nun mikroservis mimarisi MVP aşaması için lüks. Monolitle çıkmalıyız.",
+                "mvp_consensus": "Ortak karar: PostgreSQL kullanan monolit bir FastAPI yapısıyla başlanacak. Ödeme sistemi olarak basit bir kullandığın kadar öde modeli kurulacak."
             },
             "competitor_report": {
                 "competitors": [
                     {
-                        "name": "SaaS Starter Kits (ShipFast vb.)",
-                        "weakness": "Sadece hazır şablon kod veriyorlar; projenin özel iş mantığına, sektörüne veya mimari kararlarına göre akıllı analizler veya dinamik öneriler sunmuyorlar.",
-                        "our_advantage": "Yapay zeka motorumuz sayesinde sadece şablon sunmuyoruz, projenin sektörüne, bütçesine ve teknik hedeflerine özel entegre ve dinamik yol haritaları çıkarıyoruz."
+                        "name": "SaaS Starter Kits",
+                        "weakness": "Sadece şablon veriyorlar, sektörel akıllı analiz sunmuyorlar.",
+                        "our_advantage": "Projenin bütçesine ve teknik hedeflerine özel dinamik yol haritaları çıkarıyoruz."
                     }
                 ],
-                "positioning_strategy": "Rakiplerimiz sadece şablon veya genel chatbot cevapları sunarken, biz 'Yapay Zeka Destekli Kişiselleştirilmiş Girişim Mimarı' konumlamasıyla pazar lideri olmayı hedefliyoruz."
+                "positioning_strategy": "Rakiplerimiz sadece şablon sunarken, biz orkestrasyon paneli üzerinden entegre analizler veren lider platformuz."
             },
             "financial_report": {
                 "initial_mvp_cost": 500.0,
                 "monthly_burn_rate": 80.0,
                 "break_even_months": 6,
                 "costs_breakdown": [
-                    {
-                        "name": "Alan Adı & SSL (İlk Kurulum)",
-                        "amount": 20.0,
-                        "is_recurring": False
-                    },
-                    {
-                        "name": "Yapay Zeka API Kullanımı (Aylık Tahmini)",
-                        "amount": 40.0,
-                        "is_recurring": True
-                    },
-                    {
-                        "name": "Vercel / AWS Sunucu Barındırma (Aylık)",
-                        "amount": 20.0,
-                        "is_recurring": True
-                    },
-                    {
-                        "name": "Pazarlama & Sosyal Medya Reklamları (Aylık)",
-                        "amount": 20.0,
-                        "is_recurring": True
-                    }
+                    {"name": "Yapay Zeka API Kullanımı", "amount": 40.0, "is_recurring": True},
+                    {"name": "Sunucu Barındırma", "amount": 20.0, "is_recurring": True}
                 ]
+            },
+            "growth_report": {
+                "growth_strategy_title": "Product-Led Loop (Ürün Odaklı Büyüme Çarkı)",
+                "funnel_tactics": {
+                    "acquisition_channel": "Build-in-Public (Açık Kaynak Geliştirme): Geliştirme sürecindeki teknik zorlukları ve başarıları Twitter/X ve LinkedIn üzerinden teknik makalelerle paylaşarak organik yazılımcı kitlesini çekmek.",
+                    "activation_tactic": "Interactive First Simulation: Kullanıcının üye olmadan önce sadece proje başlığı girerek 10 saniye içinde ilk mini raporu almasını sağlamak (Sihirli 'Aha!' Anı).",
+                    "viral_loop": "Shareable Report & Reward: Üretilen analiz raporlarını sosyal medyada paylaşılabilir şık bir web linki haline getirmek ve paylaşılan her rapor için kullanıcıya 5 adet ücretsiz derin analiz kredisi tanımlamak."
+                },
+                "recommended_tools": ["Mixpanel (Kullanıcı davranış analizi)", "Loops.so (SaaS e-posta otomasyonu)", "Segment (Veri toplama entegrasyonu)"]
             }
         }
 
@@ -1025,41 +1039,51 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
         competitor_data = json.loads(competitor_response.text)
         time.sleep(4.0)
 
-        # --- 5. FİNANSAL ANALİZ AJANI (Yeni Adım) ---
-        financial_prompt = f"""
-        Rol: Tecrübeli Finans Direktörü ve Girişim Bütçeleme Danışmanı.
-        Proje Başlığı: "{project_title}"
-        Teknik Mimari (CTO): {cto_response.text}
-        İş Geliştirme (CEO): {ceo_response.text}
-        
-        Lütfen bu girişimin bütçesini ve maliyet kalemlerini gerçekçi bir erken aşama yazılım projesi olarak hesapla:
-        1. MVP'yi hayata geçirmek için gereken tahmini ilk kurulum maliyeti (initial_mvp_cost - USD bazlı).
-        2. Aylık sabit ve değişken operasyon maliyeti (monthly_burn_rate - USD bazlı).
-        3. Projenin kaçıncı ayda gelir-gider dengesini yakalayacağı (break_even_months).
-        4. Sunucu, API, veritabanı, domain, pazarlama gibi en kritik maliyetleri costs_breakdown listesinde is_recurring (aylık düzenli mi tek seferlik mi) belirterek çıkar.
-        
-        {lang_instruction}
-        """
+        # --- 5. FİNANSAL ANALİZ AJANI ---
+        financial_prompt = f"Proje: '{project_title}'. Mimari: {cto_response.text}. İş Planı: {ceo_response.text}. Gerçekçi bir bütçeleme ve maliyet tablosu çıkar."
         financial_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=financial_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=FinancialAnalysis,
-                temperature=0.5
-            ),
+            contents=financial_prompt + f"\n{lang_instruction}",
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=FinancialAnalysis, temperature=0.5),
         )
         financial_data = json.loads(financial_response.text)
         time.sleep(4.0)
 
-        # --- 6. Sinerji Özet ---
+        # --- 6. BÜYÜME VE PAZARLAMA AJANI (Yeni Adım) ---
+        growth_prompt = f"""
+        Rol: Silikon Vadisi düzeyinde Growth Hacker ve Pazarlama Otomasyonu Uzmanı.
+        Proje Başlığı: "{project_title}"
+        Hedef Kitle (CEO): {ceo_data.get('target_audience', '')}
+        
+        Lütfen bu girişimin bütçesini tüketmeden, organik ve viral olarak büyümesini sağlayacak büyüme stratejilerini ve AARRR hunisini kurgula:
+        1. Büyüme stratejisinin akılda kalıcı adı (growth_strategy_title).
+        2. Organik kullanıcı edinme kanalını (acquisition_channel).
+        3. Kullanıcıya 'Aha!' anını yaşatacak aktivasyon taktiğini (activation_tactic).
+        4. Viral yayılım sağlayacak referans/davet döngüsünü (viral_loop).
+        5. Bu süreçleri takip etmek ve otomatize etmek için önerilen 3 adet modern SaaS aracını (recommended_tools).
+        
+        {lang_instruction}
+        """
+        growth_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=growth_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=GrowthAnalysis,
+                temperature=0.6
+            ),
+        )
+        growth_data = json.loads(growth_response.text)
+        time.sleep(4.0)
+
+        # --- 7. Sinerji Özet ---
         synergy_prompt = f"CTO: {cto_response.text}, CEO: {ceo_response.text}. Girişimciye en kritik 3 tavsiyeyi yaz. {lang_instruction}"
         synergy_response = client.models.generate_content(
             model='gemini-2.5-flash', contents=synergy_prompt, config=types.GenerateContentConfig(temperature=0.5)
         )
         time.sleep(4.0)
 
-        # --- 7. User Persona ---
+        # --- 8. User Persona ---
         user_prompt = f"Proje: '{project_title}'. Hedef Kitle: '{ceo_data.get('target_audience', '')}'. Bu ürünü kullanır mıydın? Puanla. {lang_instruction}"
         user_response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -1076,7 +1100,8 @@ def run_multi_agent_simulation(project_title: str, sector: str, lang: str = "tr"
             "user_test": user_data,
             "debate_report": debate_data,
             "competitor_report": competitor_data,
-            "financial_report": financial_data
+            "financial_report": financial_data,
+            "growth_report": growth_data
         }
 
     except Exception as e:
