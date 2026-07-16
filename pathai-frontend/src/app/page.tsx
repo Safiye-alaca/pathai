@@ -8,7 +8,7 @@ import EvaluatePanel from "../components/EvaluatePanel";
 import MediumPanel from "../components/MediumPanel";
 import ErrorBoundary from "../components/ErrorBoundary"; 
 import { LanguageProvider, useLanguage } from "../context/LanguageContext"; // Kesin çalışan göreli import yolu
-import MultiAgentPanel from "../components/MultiAgentPanel";
+import MultiAgentPanel from "../components/MultiAgent";
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 
